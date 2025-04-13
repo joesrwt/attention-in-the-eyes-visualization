@@ -54,7 +54,7 @@ def load_gaze_data(base_path):
 
 
 # === Run Hull Analysis and Plot ===
-def run_hull_analysis_plot(base_path, video_path, alpha=0.03, window_size=20):
+def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     gaze_data_per_viewer = load_gaze_data(base_path)
 
     cap = cv2.VideoCapture(video_path)
