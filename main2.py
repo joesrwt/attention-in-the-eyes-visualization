@@ -11,7 +11,7 @@ import alphashape
 from shapely.geometry import MultiPoint
 
 # Helper function to load gaze data
-@st.cache_data
+# @st.cache_data
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -29,7 +29,7 @@ def load_gaze_data(mat_files):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-@st.cache_resource
+# @st.cache_resource
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
