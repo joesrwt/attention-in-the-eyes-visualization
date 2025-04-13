@@ -33,7 +33,6 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
 
 @st.cache_resource  # Use st.cache_resource for video processing and handling large files
-# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -163,10 +162,10 @@ if st.session_state.data_processed:
     frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
     # Prepare data for plotting
-    df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']]
+    df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']].reset_index()
 
     # Create the Altair chart with hover effect
-    chart = alt.Chart(df_plot.reset_index()).mark_line().encode(
+    chart = alt.Chart(df_plot).mark_line().encode(
         x='Frame',
         y='value',
         color='variable:N',
