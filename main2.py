@@ -153,6 +153,16 @@ if uploaded_files:
 
             frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
+            # Load and display video frame corresponding to the slider position
+            cap = cv2.VideoCapture(video_path)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)  # Jump to selected frame
+            ret, frame = cap.read()
+            if ret:
+                # Convert to RGB for Streamlit display
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                st.image(frame_rgb, caption=f"Frame {frame_slider}", use_column_width=True)
+            cap.release()
+
             df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
                 'Convex Area', 'Concave Area', 
                 'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
