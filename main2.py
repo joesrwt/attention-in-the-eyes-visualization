@@ -177,13 +177,13 @@ if st.session_state.data_processed:
     ], var_name='Metric', value_name='Area')
 
     chart = alt.Chart(df_melt).mark_line().encode(
-        x='Frame',
-        y='Area',
-        color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
-    ).properties(
-        width=600,
-        height=300
-    )
+    x='Frame',
+    y='Area',
+    color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
+                    legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart).properties(
+    width=600,
+    height=300)
+
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
     # Create two main columns
