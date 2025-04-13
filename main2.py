@@ -33,6 +33,7 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
     
 @st.cache_resource  # Use st.cache_resource for video processing and handling large files
+# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -100,27 +101,64 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 
     return df, video_frames
 
-
 # Streamlit UI
 
 st.title("🎯 Gaze & Hull Analysis Tool")
 
-# Load gaze data if not already loaded
-if 'gaze_data_per_viewer' not in st.session_state:
-    # Load gaze data using your mat files
-    gaze_data_per_viewer = load_gaze_data(["your_mat_file_path_here"])  # Add your .mat files here
-    st.session_state.gaze_data_per_viewer = gaze_data_per_viewer
-else:
-    gaze_data_per_viewer = st.session_state.gaze_data_per_viewer
+# Check if the data is already in session_state
+if 'data_processed' not in st.session_state:
+    st.session_state.data_processed = False
+
+# Form for uploading files
+with st.form(key='file_upload_form'):
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
+    submit_button = st.form_submit_button("Submit Files")
+
+if submit_button:
+    if uploaded_files:
+        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
+        mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
+
+        if not mat_files or not mov_files:
+            st.warning("Please upload at least one `.mat` file and one `.mov` video.")
+        else:
+            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
+
+            # Save uploaded files temporarily
+            temp_dir = "temp_data"
+            os.makedirs(temp_dir, exist_ok=True)
+
+            mat_paths = []
+            for file in mat_files:
+                path = os.path.join(temp_dir, file.name)
+                with open(path, "wb") as f:
+                    f.write(file.getbuffer())
+                mat_paths.append(path)
+
+            video_file = mov_files[0]
+            video_path = os.path.join(temp_dir, video_file.name)
+            with open(video_path, "wb") as f:
+                f.write(video_file.getbuffer())
+
+            # Processing and caching
+            with st.spinner("Processing gaze data and computing hull areas..."):
+                gaze_data = load_gaze_data(mat_paths)
+                df, video_frames = process_video_analysis(gaze_data, video_path)
+
+                # Store processed data in session state
+                st.session_state.df = df
+                st.session_state.video_frames = video_frames
+                st.session_state.data_processed = True
+
+            st.success("✅ Data processing completed successfully!")
 
 # If data has already been processed, load it from session state
-if 'data_processed' in st.session_state and st.session_state.data_processed:
+if st.session_state.data_processed:
     df = st.session_state.df
     video_frames = st.session_state.video_frames
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
-    # Create a slider for selecting frames
     frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
     # Melt the DataFrame to only include rolling averages
@@ -128,64 +166,27 @@ if 'data_processed' in st.session_state and st.session_state.data_processed:
         'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
     ], var_name='Metric', value_name='Area')
 
-    # Set dynamic width for the chart based on the range of frames
-    chart_width = 800  # Default width
-
     # Create the Altair chart with specific colors for the rolling averages
     chart = alt.Chart(df_melt).mark_line().encode(
         x='Frame',
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
-    ).properties(width=chart_width)
+    )
 
-    # Add a vertical line for the selected frame (accurately placed)
+    # Add a vertical line for the selected frame
     rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
 
-    # Display the chart with the vertical rule and dynamic width
+    # Display the chart with the vertical rule
     st.altair_chart(chart + rule, use_container_width=True)
 
     # Display the score for the selected frame
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
 
-    # Display the selected video frame with a fixed width
-    frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
-    
-    # Overlay the gaze points, convex hull and concave hull on the video frame
-    gaze_points = []
-    for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
-        frame_indices = (timestamps / 1000 * fps).astype(int)
-        if frame_slider in frame_indices:
-            idx = np.where(frame_indices == frame_slider)[0]
-            for i in idx:
-                gx = int(np.clip(gaze_x_norm[i], 0, 1) * (frame_rgb.shape[1] - 1))
-                gy = int(np.clip(gaze_y_norm[i], 0, 1) * (frame_rgb.shape[0] - 1))
-                gaze_points.append((gx, gy))
+    # Process the video frame as before
+frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
 
-    if len(gaze_points) >= 3:
-        # Plot the gaze points as red dots
-        for gx, gy in gaze_points:
-            cv2.circle(frame_rgb, (gx, gy), radius=5, color=(0, 0, 255), thickness=-1)  # Red dots
+# Display the frame in its original color
+frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
+st.image(frame_rgb, caption=f"Frame {frame_slider}", width=700)  # Adjust the width as needed
 
-        points = np.array(gaze_points)
-        # Draw Convex Hull in Green
-        try:
-            convex_hull = ConvexHull(points)
-            for simplex in convex_hull.simplices:
-                cv2.line(frame_rgb, tuple(points[simplex, 0]), tuple(points[simplex, 1]), color=(0, 255, 0), thickness=2)  # Green lines
-        except:
-            pass
 
-        # Draw Concave Hull in Blue
-        try:
-            concave = alphashape.alphashape(points, alpha)
-            if concave.geom_type == 'Polygon':
-                concave_coords = np.array(concave.exterior.coords)
-                for i in range(len(concave_coords) - 1):
-                    pt1 = tuple(concave_coords[i])
-                    pt2 = tuple(concave_coords[i + 1])
-                    cv2.line(frame_rgb, pt1, pt2, color=(255, 0, 0), thickness=2)  # Blue lines
-        except:
-            pass
-
-    # Display the processed frame with gaze points and hulls
-    st.image(frame_rgb, caption=f"Frame {frame_slider}", width=700)  # Adjust width as needed
