@@ -11,7 +11,6 @@ from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 import tempfile
 
-
 # === Alpha Shape Function ===
 def alpha_shape(points, alpha):
     if len(points) < 4:
@@ -32,7 +31,6 @@ def alpha_shape(points, alpha):
     m = MultiLineString(edge_points)
     return unary_union(list(polygonize(m)))
 
-
 # === Load Gaze Data ===
 def load_gaze_data(base_path):
     gaze_data_per_viewer = []
@@ -52,30 +50,24 @@ def load_gaze_data(base_path):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-
 # === Run Hull Analysis and Plot ===
 def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     gaze_data_per_viewer = load_gaze_data(base_path)
-
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("❌ Cannot open video.")
         return None
-
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
     frame_numbers = []
     convex_areas = []
     concave_areas = []
-
     frame_num = 0
     while cap.isOpened():
         ret, _ = cap.read()
         if not ret:
             break
-
         gaze_points = []
         for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
             frame_indices = (timestamps / 1000 * fps).astype(int)
@@ -85,7 +77,6 @@ def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
                     gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
                     gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
                     gaze_points.append((gx, gy))
-
         if len(gaze_points) >= 3:
             points = np.array(gaze_points)
             try:
@@ -97,16 +88,11 @@ def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
                 concave_area = concave.area if concave and concave.geom_type == 'Polygon' else 0
             except:
                 concave_area = 0
-
             frame_numbers.append(frame_num)
             convex_areas.append(convex_area)
             concave_areas.append(concave_area)
-
         frame_num += 1
-
     cap.release()
-
-    # === Dataframe and Plotting ===
     df = pd.DataFrame({
         'Frame': frame_numbers,
         'Convex Area': convex_areas,
@@ -117,45 +103,33 @@ def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
     df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
     df['Score'] = df['Score'].fillna(0)
-
     return df
-
 
 # === Streamlit App ===
 st.title("Gaze & Hull Analysis Tool")
-
 uploaded_files = st.file_uploader("Upload .mat files and one .mov file", type=['mat', 'mov'], accept_multiple_files=True)
-
 if uploaded_files:
     with tempfile.TemporaryDirectory() as tmpdir:
         mat_dir = os.path.join(tmpdir, "mat_data")
         os.makedirs(mat_dir, exist_ok=True)
         video_path = None
-
         for uploaded in uploaded_files:
             file_path = os.path.join(mat_dir, uploaded.name)
             with open(file_path, "wb") as f:
                 f.write(uploaded.getbuffer())
             if uploaded.name.endswith(".mov"):
                 video_path = file_path
-
         if video_path:
             st.success("✅ Files uploaded successfully.")
             df = run_hull_analysis_plot(mat_dir, video_path)
-
             if df is not None:
-                # Create Slider for Frame Selection
                 frame_slider = st.slider("Select Frame", min_value=df.index.min(), max_value=df.index.max(), value=df.index.min(), step=1)
-
                 selected_frame = df.loc[frame_slider]
-
-                # Display the selected frame from the video (with hulls)
                 cap = cv2.VideoCapture(video_path)
                 if cap.isOpened():
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)
                     ret, frame = cap.read()
                     if ret:
-                        # Draw Convex Hull (Green)
                         gaze_points = []
                         for gaze_x_norm, gaze_y_norm, timestamps in load_gaze_data(mat_dir):
                             frame_indices = (timestamps / 1000 * cap.get(cv2.CAP_PROP_FPS)).astype(int)
@@ -165,7 +139,6 @@ if uploaded_files:
                                     gx = int(np.clip(gaze_x_norm[i], 0, 1) * (frame.shape[1] - 1))
                                     gy = int(np.clip(gaze_y_norm[i], 0, 1) * (frame.shape[0] - 1))
                                     gaze_points.append((gx, gy))
-
                         if len(gaze_points) >= 3:
                             points = np.array(gaze_points)
                             try:
@@ -175,18 +148,23 @@ if uploaded_files:
                             except:
                                 pass
                             try:
-                                concave = alpha_shape(points, alpha)
+                                concave = alpha_shape(points, alpha=0.007)
                                 if concave and concave.geom_type == 'Polygon':
                                     exterior = np.array(concave.exterior.coords).astype(np.int32)
-                                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
+                                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(0, 0, 255), thickness=2)
                             except:
                                 pass
                         st.image(frame, channels="BGR", caption=f"Frame {frame_slider}", use_container_width=True)
                     cap.release()
-
-                # Display Score
                 st.write(f"**Frame {frame_slider}**")
                 st.write(f"Score: {selected_frame['Score']:.2f}")
+                st.subheader("Convex vs Concave Hull Area Over Time")
+                chart_data = pd.DataFrame({
+                    'Frame': df.index,
+                    'Convex Area (Avg)': df['Convex Area (Rolling Avg)'],
+                    'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
+                })
+                st.line_chart(chart_data.set_index('Frame'))
 
                 # Display Plot using `st.line_chart`
                 st.subheader("Convex vs Concave Hull Area Over Time")
@@ -198,4 +176,35 @@ if uploaded_files:
                     'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
                 })
 
+                # Create the line chart for convex and concave area rolling averages
                 st.line_chart(chart_data.set_index('Frame'))
+                # Optional: Display a comparison of convex and concave area trends with additional styling
+                st.subheader("Trend Comparison (Convex vs Concave Areas)")
+
+                fig, ax = plt.subplots(figsize=(10, 5))
+                ax.plot(df.index, df['Convex Area (Rolling Avg)'], label='Convex Area (Avg)', color='green')
+                ax.plot(df.index, df['Concave Area (Rolling Avg)'], label='Concave Area (Avg)', color='orange')
+                ax.fill_between(df.index, df['Convex Area (Rolling Avg)'], df['Concave Area (Rolling Avg)'], 
+                                where=(df['Convex Area (Rolling Avg)'] > df['Concave Area (Rolling Avg)']),
+                                color='green', alpha=0.2, label='Convex > Concave')
+                ax.fill_between(df.index, df['Concave Area (Rolling Avg)'], df['Convex Area (Rolling Avg)'], 
+                                where=(df['Concave Area (Rolling Avg)'] > df['Convex Area (Rolling Avg)']),
+                                color='orange', alpha=0.2, label='Concave > Convex')
+
+                ax.set_xlabel('Frame')
+                ax.set_ylabel('Area')
+                ax.set_title('Convex vs Concave Hull Area Over Time')
+                ax.legend(loc='upper right')
+                st.pyplot(fig)
+
+                # Optional: Display the score as a line graph or bar chart
+                st.subheader("Hull Score Over Time")
+                score_data = pd.DataFrame({
+                    'Frame': df.index,
+                    'Score': df['Score']
+                })
+                st.line_chart(score_data.set_index('Frame'))
+
+
+
+                
