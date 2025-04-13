@@ -99,8 +99,7 @@ def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
     df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
-    df['Score'] = df['Score'].fillna(0)
-
+    
     st.line_chart(df[['Convex Area', 'Concave Area']])
     st.line_chart(df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)', 'Score']])
 
