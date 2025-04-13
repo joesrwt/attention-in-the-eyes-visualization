@@ -8,7 +8,6 @@ import streamlit as st
 import altair as alt
 from scipy.spatial import ConvexHull
 import alphashape
-
 from shapely.geometry import MultiPoint
 
 # Helper function to load gaze data
@@ -100,11 +99,56 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 # Streamlit UI
 st.title("🎯 Gaze & Hull Analysis Tool")
 
+if 'data_processed' not in st.session_state:
+    st.session_state.data_processed = False
+if 'current_frame' not in st.session_state:
+    st.session_state.current_frame = 0
+
+# File upload form
+with st.form(key='file_upload_form'):
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
+    submit_button = st.form_submit_button("Submit Files")
+
+if submit_button:
+    if uploaded_files:
+        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
+        mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
+
+        if not mat_files or not mov_files:
+            st.warning("Please upload at least one `.mat` file and one `.mov` video.")
+        else:
+            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
+
+            temp_dir = "temp_data"
+            os.makedirs(temp_dir, exist_ok=True)
+
+            mat_paths = []
+            for file in mat_files:
+                path = os.path.join(temp_dir, file.name)
+                with open(path, "wb") as f:
+                    f.write(file.getbuffer())
+                mat_paths.append(path)
+
+            video_file = mov_files[0]
+            video_path = os.path.join(temp_dir, video_file.name)
+            with open(video_path, "wb") as f:
+                f.write(video_file.getbuffer())
+
+            with st.spinner("Processing gaze data and computing hull areas..."):
+                gaze_data = load_gaze_data(mat_paths)
+                df, video_frames = process_video_analysis(gaze_data, video_path)
+
+                st.session_state.df = df
+                st.session_state.video_frames = video_frames
+                st.session_state.data_processed = True
+                st.session_state.current_frame = int(df.index.min())
+
+            st.success("✅ Data processing completed successfully!")
+
 # Display analysis
 if st.session_state.data_processed:
     df = st.session_state.df
     video_frames = st.session_state.video_frames
-    gaze_data_per_viewer = st.session_state.gaze_data_per_viewer  # Ensure this variable is set
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
     frame_increment = 5
@@ -142,32 +186,15 @@ if st.session_state.data_processed:
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
-    # Layer the chart with the rule
-    chart_with_rule = chart + rule
+    # Create two main columns
+    col_chart, col_right = st.columns([2, 1])  # Wider chart on the left
 
-    # Layout with two columns side-by-side
-    col_plot, col_img_score = st.columns([1, 1])
+    with col_chart:
+        st.altair_chart(chart + rule, use_container_width=True)
 
-    with col_plot:
-        st.altair_chart(chart_with_rule, use_container_width=True)
-
-    with col_img_score:
-        # Display the video frame
+    with col_right:
+        # Subdivide the right column
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        
-        # Draw gaze points overlay on the image
-        gaze_points = []
-        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
-            frame_indices = (timestamps / 1000 * fps).astype(int)
-            if current_frame in frame_indices:
-                idx = np.where(frame_indices == current_frame)[0]
-                for i in idx:
-                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
-                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
-                    gaze_points.append((gx, gy))
-        for gx, gy in gaze_points:
-            cv2.circle(frame_rgb, (gx, gy), 5, (0, 255, 0), -1)  # Overlay gaze points with green circles
+        st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
 
-        st.image(frame_rgb, caption=f"Frame {current_frame}", width=350)
-        # Display the score
         st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
