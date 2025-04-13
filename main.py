@@ -1,39 +1,31 @@
-# main.py
 import streamlit as st
-import os
 from gaze_hull_utils import process_video_with_gaze_and_hulls, generate_area_dataframe_and_plot
+import os
 
-st.set_page_config(page_title="Gaze & Hull Visualizer", layout="wide")
-st.title("👁️ Gaze + Hull Analysis Viewer")
+# Display app title and description
+st.title("🎥 Gaze and Hull Analysis Viewer")
 st.markdown("""
-Upload your gaze `.mat` files and the corresponding video to visualize gaze points, convex and concave hulls frame-by-frame. 
-Also see how the hull areas evolve over time.
+This app visualizes gaze data over a video by plotting convex and concave hulls per frame,
+and shows area analysis over time.
 """)
 
-with st.sidebar:
-    st.header("Input Files")
-    mat_folder = st.text_input("📁 Path to folder containing .mat gaze files")
-    video_file = st.file_uploader("🎥 Upload video file (MP4 preferred)", type=["mp4", "mov"])
-    alpha = st.slider("Alpha for concave hull", min_value=0.01, max_value=0.1, step=0.01, value=0.03)
-    plot_window = st.slider("Rolling average window size (frames)", 5, 100, 20)
-    run_btn = st.button("🚀 Run Visualization")
+# Folder options for gaze data
+folders = [f for f in os.listdir('./') if os.path.isdir(f) and not f.startswith('.')]
+selected_folder = st.selectbox("Select a folder with gaze data", folders)
 
-if run_btn and mat_folder and video_file:
-    with st.spinner("Processing video and computing hulls..."):
-        video_path = os.path.join("temp_vid.mp4")
-        with open(video_path, 'wb') as f:
-            f.write(video_file.read())
+# Paths for video and gaze data
+base_path = "./APPAL_2a"
+video_path = "./raw clip/APPAL_2a_c.mov"
 
-        frame_nums, convex_areas, concave_areas, out_path = process_video_with_gaze_and_hulls(
-            mat_folder, video_path, alpha=alpha
-        )
+# Show video with gaze and hulls
+if st.button("▶️ Run Gaze + Hull Video"):
+    st.info("Processing video. This may take a moment...")
+    output_path = process_video_with_gaze_and_hulls(base_path, video_path)
+    st.video(output_path)
 
-    if out_path:
-        st.subheader("📽️ Video with Gaze & Hulls")
-        st.video(out_path)
-
-    if frame_nums:
-        st.subheader("📊 Hull Area Analysis")
-        generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas, window_size=plot_window)
-else:
-    st.info("Please select input files and click Run Visualization.")
+# Show hull area analysis plot
+if st.button("📈 Show Hull Area Analysis"):
+    st.info("Generating plot...")
+    frame_nums, convex_areas, concave_areas = process_video_with_gaze_and_hulls(base_path, video_path)
+    df = generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas)
+    st.dataframe(df)
