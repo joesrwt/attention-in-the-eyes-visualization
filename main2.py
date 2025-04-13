@@ -33,7 +33,6 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
     
 @st.cache_resource  # Use st.cache_resource for video processing and handling large files
-# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -101,6 +100,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 
     return df, video_frames
 
+
 # Streamlit UI
 
 st.title("🎯 Gaze & Hull Analysis Tool")
@@ -141,4 +141,43 @@ if st.session_state.data_processed:
 
     # Display the selected video frame with a fixed width
     frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
+    
+    # Overlay the gaze points, convex hull and concave hull on the video frame
+    gaze_points = []
+    for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
+        frame_indices = (timestamps / 1000 * fps).astype(int)
+        if frame_slider in frame_indices:
+            idx = np.where(frame_indices == frame_slider)[0]
+            for i in idx:
+                gx = int(np.clip(gaze_x_norm[i], 0, 1) * (frame_rgb.shape[1] - 1))
+                gy = int(np.clip(gaze_y_norm[i], 0, 1) * (frame_rgb.shape[0] - 1))
+                gaze_points.append((gx, gy))
+
+    if len(gaze_points) >= 3:
+        # Plot the gaze points as red dots
+        for gx, gy in gaze_points:
+            cv2.circle(frame_rgb, (gx, gy), radius=5, color=(0, 0, 255), thickness=-1)  # Red dots
+
+        points = np.array(gaze_points)
+        # Draw Convex Hull in Green
+        try:
+            convex_hull = ConvexHull(points)
+            for simplex in convex_hull.simplices:
+                cv2.line(frame_rgb, tuple(points[simplex, 0]), tuple(points[simplex, 1]), color=(0, 255, 0), thickness=2)  # Green lines
+        except:
+            pass
+
+        # Draw Concave Hull in Blue
+        try:
+            concave = alphashape.alphashape(points, alpha)
+            if concave.geom_type == 'Polygon':
+                concave_coords = np.array(concave.exterior.coords)
+                for i in range(len(concave_coords) - 1):
+                    pt1 = tuple(concave_coords[i])
+                    pt2 = tuple(concave_coords[i + 1])
+                    cv2.line(frame_rgb, pt1, pt2, color=(255, 0, 0), thickness=2)  # Blue lines
+        except:
+            pass
+
+    # Display the processed frame with gaze points and hulls
     st.image(frame_rgb, caption=f"Frame {frame_slider}", width=700)  # Adjust width as needed
