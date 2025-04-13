@@ -49,7 +49,7 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
 
 
-def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
+def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         st.error("❌ Cannot open video.")
@@ -112,12 +112,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
     df['Score'] = df['Score'].fillna(0)
     
-    # Save video frames and dataframe
-    video_frames_path = "video_frames.npy"
-    np.save(video_frames_path, video_frames)  # Save frames as a numpy array
-    df.to_csv("hull_data.csv")  # Save data to a CSV
-
-    return df, video_frames_path
+    return df, video_frames  # Return video frames directly
 
 
 # ========== Streamlit UI ==========
@@ -154,18 +149,15 @@ if uploaded_files:
         # Processing
         with st.spinner("Processing gaze data and computing hull areas..."):
             gaze_data = load_gaze_data(mat_paths)
-            df, video_frames_path = process_video_analysis(gaze_data, video_path)
+            df, video_frames = process_video_analysis(gaze_data, video_path)
 
         if df is not None and not df.empty:
             st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
-            # Load precomputed video frames
-            video_frames = np.load(video_frames_path)
-
             # Slider for selecting frame
             frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
-            # Display the video frame for the selected frame
+            # Display the video frame for the selected frame (using precomputed frames)
             frame = video_frames[frame_slider]
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             st.image(frame_rgb, caption=f"Frame {frame_slider}", use_column_width=True)
