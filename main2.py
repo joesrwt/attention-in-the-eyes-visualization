@@ -182,7 +182,7 @@ if st.session_state.data_processed:
     color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
                     legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart
 ).properties(
-    width=600,
+    width=500,
     height=300
 )
 
