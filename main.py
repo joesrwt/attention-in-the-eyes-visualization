@@ -1,3 +1,4 @@
+# main.py
 import os
 import tempfile
 import streamlit as st
@@ -6,6 +7,7 @@ import numpy as np
 import scipy.io
 import pandas as pd
 import matplotlib.pyplot as plt
+import math
 from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
@@ -20,7 +22,7 @@ def alpha_shape(points, alpha):
         pa, pb, pc = points[ia], points[ib], points[ic]
         a, b, c = np.linalg.norm(pb - pa), np.linalg.norm(pc - pb), np.linalg.norm(pa - pc)
         s = (a + b + c) / 2.0
-        area = max(s * (s - a) * (s - b) * (s - c), 0) ** 0.5
+        area = math.sqrt(max(s * (s - a) * (s - b) * (s - c), 0))
         if area == 0:
             continue
         circum_r = a * b * c / (4.0 * area)
@@ -49,8 +51,8 @@ def load_gaze_data(base_path):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-# === Analysis & Plotting ===
-def run_hull_analysis_plot(base_path, video_path, alpha=0.03, window_size=20):
+# === Plot Hull Analysis ===
+def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     gaze_data_per_viewer = load_gaze_data(base_path)
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -102,10 +104,58 @@ def run_hull_analysis_plot(base_path, video_path, alpha=0.03, window_size=20):
     st.line_chart(df[['Convex Area', 'Concave Area']])
     st.line_chart(df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)', 'Score']])
 
-# === Streamlit App ===
-st.title("Gaze & Hull Analysis Tool")
+# === Video Viewer with Gaze Overlay ===
+def run_video_with_gaze_and_hulls(base_path, video_path, alpha=0.007):
+    gaze_data_per_viewer = load_gaze_data(base_path)
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-uploaded_files = st.file_uploader("Upload .mat files and one .mov file", type=['mat', 'mov'], accept_multiple_files=True)
+    stframe = st.empty()
+    frame_num = 0
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        gaze_points = []
+        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
+            frame_indices = (timestamps / 1000 * fps).astype(int)
+            if frame_num in frame_indices:
+                idx = np.where(frame_indices == frame_num)[0]
+                for i in idx:
+                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
+                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
+                    gaze_points.append((gx, gy))
+                    cv2.circle(frame, (gx, gy), 4, (0, 0, 255), -1)
+
+        if len(gaze_points) >= 3:
+            points = np.array(gaze_points)
+            try:
+                hull = ConvexHull(points)
+                hull_pts = points[hull.vertices].reshape((-1, 1, 2))
+                cv2.polylines(frame, [hull_pts], isClosed=True, color=(0, 255, 0), thickness=2)
+            except:
+                pass
+            try:
+                concave = alpha_shape(points, alpha)
+                if concave and concave.geom_type == 'Polygon':
+                    exterior = np.array(concave.exterior.coords).astype(np.int32)
+                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
+            except:
+                pass
+
+        stframe.image(frame, channels="BGR", caption=f"Frame {frame_num}", use_column_width=True)
+        frame_num += 1
+
+    cap.release()
+
+# === Streamlit App ===
+st.set_page_config(page_title="Gaze Analysis Tool", layout="wide")
+st.title("👀 Gaze & Hull Visualization Tool")
+
+uploaded_files = st.file_uploader("📂 Upload .mat files and one .mov video", type=['mat', 'mov'], accept_multiple_files=True)
 
 if uploaded_files:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -122,7 +172,14 @@ if uploaded_files:
 
         if video_path:
             st.success("✅ Files uploaded successfully.")
-            if st.button("Run Analysis"):
-                run_hull_analysis_plot(mat_dir, video_path)
+            tabs = st.tabs(["📈 Area Plot", "🎥 Video Viewer"])
+
+            with tabs[0]:
+                st.header("Convex & Concave Hull Area Over Time")
+                run_hull_analysis_plot(mat_dir, video_path, alpha=0.007)
+
+            with tabs[1]:
+                st.header("Video Playback with Gaze and Hull Overlay")
+                run_video_with_gaze_and_hulls(mat_dir, video_path, alpha=0.007)
         else:
-            st.error("⚠️ Please make sure to upload a .mov video file.")
+            st.error("⚠️ Please upload one .mov video file.")
