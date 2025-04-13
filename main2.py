@@ -53,7 +53,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         st.error("❌ Cannot open video.")
-        return None
+        return None, None
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -84,13 +84,15 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
             points = np.array(gaze_points)
             try:
                 convex_area = ConvexHull(points).volume
-            except:
+            except Exception as e:
                 convex_area = 0
+                print(f"Error computing convex hull area at frame {frame_num}: {e}")
             try:
                 concave = alpha_shape(points, alpha)
                 concave_area = concave.area if concave and concave.geom_type == 'Polygon' else 0
-            except:
+            except Exception as e:
                 concave_area = 0
+                print(f"Error computing concave hull area at frame {frame_num}: {e}")
 
             frame_numbers.append(frame_num)
             convex_areas.append(convex_area)
@@ -100,6 +102,10 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
         frame_num += 1
 
     cap.release()
+
+    if len(frame_numbers) == 0:
+        st.warning("No valid frames found in the video.")
+        return None, None
 
     df = pd.DataFrame({
         'Frame': frame_numbers,
