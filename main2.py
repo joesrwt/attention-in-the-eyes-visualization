@@ -11,7 +11,6 @@ import alphashape
 
 from shapely.geometry import MultiPoint
 
-
 # Helper function to load gaze data
 @st.cache_data
 def load_gaze_data(mat_files):
@@ -30,7 +29,6 @@ def load_gaze_data(mat_files):
         gaze_y_norm = gaze_y / np.max(gaze_y)
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
-
 
 @st.cache_resource
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
@@ -98,7 +96,6 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df['Score'] = df['Score'].fillna(0)
 
     return df, video_frames
-
 
 # Streamlit UI
 st.title("🎯 Gaze & Hull Analysis Tool")
@@ -184,13 +181,19 @@ if st.session_state.data_processed:
         x='Frame',
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
+    ).properties(
+        width=400,
+        height=300
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
-    st.altair_chart(chart + rule, use_container_width=True)
 
-    # Display score
-    st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
+    # Layout with two columns side-by-side
+    col_plot, col_img = st.columns([1, 1])
 
-    # Display video frame
-    frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-    st.image(frame_rgb, caption=f"Frame {current_frame}", width=700)
+    with col_plot:
+        st.altair_chart(chart + rule, use_container_width=False)
+        st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
+
+    with col_img:
+        frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
+        st.image(frame_rgb, caption=f"Frame {current_frame}", use_column_width=True)
