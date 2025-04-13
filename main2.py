@@ -100,56 +100,11 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 # Streamlit UI
 st.title("🎯 Gaze & Hull Analysis Tool")
 
-if 'data_processed' not in st.session_state:
-    st.session_state.data_processed = False
-if 'current_frame' not in st.session_state:
-    st.session_state.current_frame = 0
-
-# File upload form
-with st.form(key='file_upload_form'):
-    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
-    submit_button = st.form_submit_button("Submit Files")
-
-if submit_button:
-    if uploaded_files:
-        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
-        mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
-
-        if not mat_files or not mov_files:
-            st.warning("Please upload at least one `.mat` file and one `.mov` video.")
-        else:
-            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
-
-            temp_dir = "temp_data"
-            os.makedirs(temp_dir, exist_ok=True)
-
-            mat_paths = []
-            for file in mat_files:
-                path = os.path.join(temp_dir, file.name)
-                with open(path, "wb") as f:
-                    f.write(file.getbuffer())
-                mat_paths.append(path)
-
-            video_file = mov_files[0]
-            video_path = os.path.join(temp_dir, video_file.name)
-            with open(video_path, "wb") as f:
-                f.write(video_file.getbuffer())
-
-            with st.spinner("Processing gaze data and computing hull areas..."):
-                gaze_data = load_gaze_data(mat_paths)
-                df, video_frames = process_video_analysis(gaze_data, video_path)
-
-                st.session_state.df = df
-                st.session_state.video_frames = video_frames
-                st.session_state.data_processed = True
-                st.session_state.current_frame = int(df.index.min())
-
-            st.success("✅ Data processing completed successfully!")
-
 # Display analysis
 if st.session_state.data_processed:
     df = st.session_state.df
     video_frames = st.session_state.video_frames
+    gaze_data_per_viewer = st.session_state.gaze_data_per_viewer  # Ensure this variable is set
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
     frame_increment = 5
