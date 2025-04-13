@@ -8,7 +8,6 @@ import streamlit as st
 import altair as alt
 from scipy.spatial import ConvexHull
 import alphashape
-
 from shapely.geometry import MultiPoint
 
 # Helper function to load gaze data
@@ -187,13 +186,15 @@ if st.session_state.data_processed:
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
-    # Layout with two columns side-by-side
-    col_plot, col_img = st.columns([1, 1])
+    # Create two main columns
+    col_chart, col_right = st.columns([2, 1])  # Wider chart on the left
 
-    with col_plot:
-        st.altair_chart(chart + rule, use_container_width=False)
-        st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
+    with col_chart:
+        st.altair_chart(chart + rule, use_container_width=True)
 
-    with col_img:
+    with col_right:
+        # Subdivide the right column
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame}")
+        st.image(frame_rgb, caption=f"Frame {current_frame}", use_column_width=True)
+
+        st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
