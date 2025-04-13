@@ -111,6 +111,16 @@ if st.session_state.data_processed:
     video_frames = st.session_state.video_frames
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
+    st.markdown(
+    """
+    <style>
+    .stSlider > div > div {
+        width: 800px;
+    }
+    </style>
+    """, 
+    unsafe_allow_html=True
+)
 
     # Create a slider for selecting frames
     frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
@@ -121,7 +131,7 @@ if st.session_state.data_processed:
     ], var_name='Metric', value_name='Area')
 
     # Set dynamic width for the chart based on the range of frames
-    chart_width = 1200  # Default width
+    chart_width = 800  # Default width
 
     # Create the Altair chart with specific colors for the rolling averages
     chart = alt.Chart(df_melt).mark_line().encode(
