@@ -105,8 +105,16 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 
 st.title("🎯 Gaze & Hull Analysis Tool")
 
+# Load gaze data if not already loaded
+if 'gaze_data_per_viewer' not in st.session_state:
+    # Load gaze data using your mat files
+    gaze_data_per_viewer = load_gaze_data(["your_mat_file_path_here"])  # Add your .mat files here
+    st.session_state.gaze_data_per_viewer = gaze_data_per_viewer
+else:
+    gaze_data_per_viewer = st.session_state.gaze_data_per_viewer
+
 # If data has already been processed, load it from session state
-if st.session_state.data_processed:
+if 'data_processed' in st.session_state and st.session_state.data_processed:
     df = st.session_state.df
     video_frames = st.session_state.video_frames
 
