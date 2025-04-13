@@ -164,13 +164,35 @@ if st.session_state.data_processed:
     st.session_state.current_frame = new_frame
 
     # Navigation buttons
-    col1, col2, col3 = st.columns([1, 4, 1])
-    with col1:
-        if st.button("Previous Frame"):
-            st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
-    with col3:
-        if st.button("Next Frame"):
-            st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
+    # Navigation buttons with smaller size
+col1, col2, col3 = st.columns([1, 4, 1])
+with col1:
+    st.markdown(
+        """
+        <style>
+        .small-button > button {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        </style>
+        <div class="small-button">
+        """,
+        unsafe_allow_html=True
+    )
+    if st.button("Previous Frame"):
+        st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col3:
+    st.markdown(
+        """
+        <div class="small-button">
+        """,
+        unsafe_allow_html=True
+    )
+    if st.button("Next Frame"):
+        st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Updated frame after navigation
     current_frame = st.session_state.current_frame
