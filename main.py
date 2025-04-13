@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
+import tempfile
 
 
 # === Alpha Shape Function ===
@@ -143,11 +144,12 @@ if uploaded_files:
             df = run_hull_analysis_plot(mat_dir, video_path)
 
             if df is not None:
-                # Slider for frame selection
-                frame_slider = st.slider("Select Frame", min_value=df.index.min(), max_value=df.index.max(), value=df.index.min())
+                # Frame Slider
+                frame_slider = st.slider("Select Frame", min_value=df.index.min(), max_value=df.index.max(), value=df.index.min(), step=1)
+
                 selected_frame = df.loc[frame_slider]
 
-                # Video Player
+                # Display the selected frame from the video
                 cap = cv2.VideoCapture(video_path)
                 if cap.isOpened():
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)
@@ -156,10 +158,11 @@ if uploaded_files:
                         st.image(frame, channels="BGR", caption=f"Frame {frame_slider}", use_container_width=True)
                     cap.release()
 
+                # Display Frame Info and Score
                 st.write(f"**Frame {frame_slider}**")
                 st.write(f"Score: {selected_frame['Score']:.2f}")
 
-                # Plotting
+                # Plot Analysis
                 fig, ax = plt.subplots(figsize=(12, 6))
                 ax.plot(df.index, df['Convex Area'], alpha=0.3, label='Convex Area (Raw)', color='green')
                 ax.plot(df.index, df['Concave Area'], alpha=0.3, label='Concave Area (Raw)', color='blue')
@@ -172,6 +175,3 @@ if uploaded_files:
                 ax.grid(True)
                 plt.tight_layout()
                 st.pyplot(fig)
-
-        else:
-            st.error("⚠️ Please make sure to upload a .mov video file.")
