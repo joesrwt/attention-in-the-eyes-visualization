@@ -175,36 +175,3 @@ if uploaded_files:
                     'Convex Area (Avg)': df['Convex Area (Rolling Avg)'],
                     'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
                 })
-
-                # Create the line chart for convex and concave area rolling averages
-                st.line_chart(chart_data.set_index('Frame'))
-                # Optional: Display a comparison of convex and concave area trends with additional styling
-                st.subheader("Trend Comparison (Convex vs Concave Areas)")
-
-                fig, ax = plt.subplots(figsize=(10, 5))
-                ax.plot(df.index, df['Convex Area (Rolling Avg)'], label='Convex Area (Avg)', color='green')
-                ax.plot(df.index, df['Concave Area (Rolling Avg)'], label='Concave Area (Avg)', color='orange')
-                ax.fill_between(df.index, df['Convex Area (Rolling Avg)'], df['Concave Area (Rolling Avg)'], 
-                                where=(df['Convex Area (Rolling Avg)'] > df['Concave Area (Rolling Avg)']),
-                                color='green', alpha=0.2, label='Convex > Concave')
-                ax.fill_between(df.index, df['Concave Area (Rolling Avg)'], df['Convex Area (Rolling Avg)'], 
-                                where=(df['Concave Area (Rolling Avg)'] > df['Convex Area (Rolling Avg)']),
-                                color='orange', alpha=0.2, label='Concave > Convex')
-
-                ax.set_xlabel('Frame')
-                ax.set_ylabel('Area')
-                ax.set_title('Convex vs Concave Hull Area Over Time')
-                ax.legend(loc='upper right')
-                st.pyplot(fig)
-
-                # Optional: Display the score as a line graph or bar chart
-                st.subheader("Hull Score Over Time")
-                score_data = pd.DataFrame({
-                    'Frame': df.index,
-                    'Score': df['Score']
-                })
-                st.line_chart(score_data.set_index('Frame'))
-
-
-
-                
