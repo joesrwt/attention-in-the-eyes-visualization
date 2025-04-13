@@ -5,5 +5,5 @@ matplotlib
 scipy
 opencv-python-headless
 alphashape
-altair==5.2.0
-shapely==2.0.1
+altair
+shapely
