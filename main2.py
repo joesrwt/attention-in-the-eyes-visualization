@@ -151,7 +151,7 @@ if st.session_state.data_processed:
     video_frames = st.session_state.video_frames
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
-    frame_increment = 10
+    frame_increment = 5
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
@@ -162,29 +162,34 @@ if st.session_state.data_processed:
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("Previous <10"):
+        if st.button("Previous <5"):
             st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
     with col3:
-        if st.button("Next >10"):
+        if st.button("Next >5"):
             st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
     # Updated frame after navigation
     current_frame = st.session_state.current_frame
 
-    # Prepare data for Altair chart
-    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-    ], var_name='Metric', value_name='Area')
+    # Memoized data preparation function
+    @st.experimental_memo
+    def prepare_chart_data(df):
+        df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+            'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+        ], var_name='Metric', value_name='Area')
+        return df_melt
+
+    df_melt = prepare_chart_data(df)
 
     chart = alt.Chart(df_melt).mark_line().encode(
-    x='Frame',
-    y='Area',
-    color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
-                    legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart
-).properties(
-    width=500,
-    height=300
-)
+        x='Frame',
+        y='Area',
+        color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
+                        legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart
+    ).properties(
+        width=500,
+        height=300
+    )
 
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
