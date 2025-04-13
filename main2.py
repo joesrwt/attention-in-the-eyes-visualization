@@ -121,9 +121,7 @@ if st.session_state.data_processed:
     ], var_name='Metric', value_name='Area')
 
     # Set dynamic width for the chart based on the range of frames
-    chart_width = 800  # Default width
-    if df.index.max() - df.index.min() > 0:
-        chart_width = (df.index.max() - df.index.min())  # Adjust multiplier as needed
+    chart_width = 1200  # Default width
 
     # Create the Altair chart with specific colors for the rolling averages
     chart = alt.Chart(df_melt).mark_line().encode(
