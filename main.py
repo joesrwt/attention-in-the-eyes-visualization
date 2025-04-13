@@ -14,8 +14,8 @@ folders = [f for f in os.listdir('./') if os.path.isdir(f) and not f.startswith(
 selected_folder = st.selectbox("Select a folder with gaze data", folders)
 
 # Paths for video and gaze data
-base_path = "./APPAL_2a"
-video_path = "./raw clip/APPAL_2a_c.mov"
+base_path = f"./{selected_folder}"
+video_path = f"./raw clip/{selected_folder}_c.mov"
 
 # Show video with gaze and hulls
 if st.button("▶️ Run Gaze + Hull Video"):
@@ -29,4 +29,3 @@ if st.button("📈 Show Hull Area Analysis"):
     frame_nums, convex_areas, concave_areas = process_video_with_gaze_and_hulls(base_path, video_path)
     df = generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas)
     st.dataframe(df)
-
