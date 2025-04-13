@@ -49,7 +49,7 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
 
 
-def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_size=20):
+def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         st.error("❌ Cannot open video.")
