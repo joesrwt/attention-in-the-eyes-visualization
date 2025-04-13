@@ -194,5 +194,5 @@ if st.session_state.data_processed:
 
     with col_right:
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame}", use_column_width=True)
+        st.image(frame_rgb, caption=f"Frame {current_frame}"
         st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
