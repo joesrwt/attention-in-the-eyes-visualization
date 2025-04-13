@@ -188,19 +188,13 @@ if st.session_state.data_processed:
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
     # Layer the chart with the rule
-    layered_chart = alt.layer(
-        chart,
-        rule
-    ).configure_legend(
-        orient='bottom',  # Place the legend below the chart
-        title=None  # Optional: Remove the title if not needed
-    )
+    chart_with_rule = chart + rule
 
     # Layout with two columns side-by-side
     col_plot, col_img_score = st.columns([1, 1])
 
     with col_plot:
-        st.altair_chart(layered_chart, use_container_width=True)
+        st.altair_chart(chart_with_rule, use_container_width=True)
 
     with col_img_score:
         # Display the video frame
