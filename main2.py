@@ -36,6 +36,9 @@ def load_gaze_data(mat_files):
 import alphashape
 
 # Modify the code for concave hull calculation
+import alphashape
+
+# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -102,6 +105,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df['Score'] = df['Score'].fillna(0)
 
     return df, video_frames
+
 
 
 # Streamlit UI
