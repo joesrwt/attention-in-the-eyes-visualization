@@ -185,7 +185,7 @@ if st.session_state.data_processed:
         height=500
     ).configure_legend(
     orient='bottom',  # Place the legend below the chart
-    title=None  # Optional: Remove the title if not needed)
+    title=None)
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
     # Create two main columns
