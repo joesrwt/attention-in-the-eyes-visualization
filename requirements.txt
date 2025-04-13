@@ -1,7 +1,7 @@
 streamlit
-opencv-python
 numpy
+pandas
 matplotlib
 scipy
-pandas
 shapely
+opencv-python-headless
