@@ -31,7 +31,8 @@ def load_gaze_data(mat_files):
         gaze_y_norm = gaze_y / np.max(gaze_y)
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
-
+    
+@st.cache_resource  # Use st.cache_resource for video processing and handling large files
 # Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
@@ -99,7 +100,6 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df['Score'] = df['Score'].fillna(0)
 
     return df, video_frames
-@st.cache_resource  # Use st.cache_resource for video processing and handling large files
 
 # Streamlit UI
 
