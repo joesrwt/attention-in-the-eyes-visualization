@@ -155,6 +155,32 @@ if uploaded_files:
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)
                     ret, frame = cap.read()
                     if ret:
+                        # Draw Convex Hull (Green)
+                        gaze_points = []
+                        for gaze_x_norm, gaze_y_norm, timestamps in load_gaze_data(mat_dir):
+                            frame_indices = (timestamps / 1000 * cap.get(cv2.CAP_PROP_FPS)).astype(int)
+                            if frame_slider in frame_indices:
+                                idx = np.where(frame_indices == frame_slider)[0]
+                                for i in idx:
+                                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (frame.shape[1] - 1))
+                                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (frame.shape[0] - 1))
+                                    gaze_points.append((gx, gy))
+
+                        if len(gaze_points) >= 3:
+                            points = np.array(gaze_points)
+                            try:
+                                hull = ConvexHull(points)
+                                hull_pts = points[hull.vertices].reshape((-1, 1, 2))
+                                cv2.polylines(frame, [hull_pts], isClosed=True, color=(0, 255, 0), thickness=2)
+                            except:
+                                pass
+                            try:
+                                concave = alpha_shape(points, alpha)
+                                if concave and concave.geom_type == 'Polygon':
+                                    exterior = np.array(concave.exterior.coords).astype(np.int32)
+                                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
+                            except:
+                                pass
                         st.image(frame, channels="BGR", caption=f"Frame {frame_slider}", use_container_width=True)
                     cap.release()
 
