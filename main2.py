@@ -182,7 +182,7 @@ if st.session_state.data_processed:
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
     ).properties(
-        width=700,
+        width=600,
         height=300
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
@@ -196,4 +196,4 @@ if st.session_state.data_processed:
 
     with col_img:
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame}", width = 300)
+        st.image(frame_rgb, caption=f"Frame {current_frame}")
