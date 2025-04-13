@@ -100,6 +100,10 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
 
 st.title("🎯 Gaze & Hull Analysis Tool")
 
+# Check if the data is already in session_state
+if 'data_processed' not in st.session_state:
+    st.session_state.data_processed = False
+
 # Form for uploading files
 with st.form(key='file_upload_form'):
     uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
@@ -136,28 +140,38 @@ if submit_button:
                 gaze_data = load_gaze_data(mat_paths)
                 df, video_frames = process_video_analysis(gaze_data, video_path)
 
-            # Display the results
-            if df is not None and not df.empty:
-                st.subheader("📊 Convex vs Concave Hull Area Over Time")
+                # Store processed data in session state
+                st.session_state.df = df
+                st.session_state.video_frames = video_frames
+                st.session_state.data_processed = True
 
-                frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
+            st.success("✅ Data processing completed successfully!")
 
-                df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-                    'Convex Area', 'Concave Area', 
-                    'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-                ], var_name='Metric', value_name='Area')
+# If data has already been processed, load it from session state
+if st.session_state.data_processed:
+    df = st.session_state.df
+    video_frames = st.session_state.video_frames
 
-                chart = alt.Chart(df_melt).mark_line().encode(
-                    x='Frame',
-                    y='Area',
-                    color='Metric'
-                )
+    st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
-                rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
+    frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
-                st.altair_chart(chart + rule, use_container_width=True)
+    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+        'Convex Area', 'Concave Area', 
+        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+    ], var_name='Metric', value_name='Area')
 
-                st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
+    chart = alt.Chart(df_melt).mark_line().encode(
+        x='Frame',
+        y='Area',
+        color='Metric'
+    )
 
-                # Display video frame for selected frame
-                st.image(video_frames[frame_slider], caption=f"Frame {frame_slider}", use_column_width=True)
+    rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
+
+    st.altair_chart(chart + rule, use_container_width=True)
+
+    st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
+
+    # Display video frame for selected frame
+    st.image(video_frames[frame_slider], caption=f"Frame {frame_slider}", use_column_width=True)
