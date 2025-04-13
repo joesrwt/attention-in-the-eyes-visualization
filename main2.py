@@ -31,6 +31,9 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
 
 @st.cache_resource  # Use st.cache_resource for video processing and handling large files
+import alphashape
+
+# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -68,9 +71,11 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
                 convex_area = ConvexHull(points).volume
             except:
                 convex_area = 0
+            
             try:
-                concave = alpha_shape(points, alpha)
-                concave_area = concave.area if concave and concave.geom_type == 'Polygon' else 0
+                # Use alphashape to get the concave hull
+                concave = alphashape.alphashape(points, alpha)
+                concave_area = concave.area if concave.geom_type == 'Polygon' else 0
             except:
                 concave_area = 0
 
@@ -95,6 +100,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df['Score'] = df['Score'].fillna(0)
 
     return df, video_frames
+
 
 # Streamlit UI
 
