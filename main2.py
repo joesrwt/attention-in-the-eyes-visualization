@@ -33,6 +33,7 @@ def load_gaze_data(mat_files):
     return gaze_data_per_viewer
 
 @st.cache_resource  # Use st.cache_resource for video processing and handling large files
+# Modify the code for concave hull calculation
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -101,6 +102,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     return df, video_frames
 
 
+
 # Streamlit UI
 
 st.title("🎯 Gaze & Hull Analysis Tool")
@@ -161,24 +163,21 @@ if st.session_state.data_processed:
 
     frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
-    # Prepare data for plotting
-    df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']].reset_index()
+    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+        'Convex Area', 'Concave Area', 
+        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+    ], var_name='Metric', value_name='Area')
 
-    # Create the Altair chart with hover effect
-    chart = alt.Chart(df_plot).mark_line().encode(
+    chart = alt.Chart(df_melt).mark_line().encode(
         x='Frame',
-        y='value',
-        color='variable:N',
-        tooltip=['Frame', 'variable', 'value']
-    ).transform_fold(
-        ['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-        as_=['variable', 'value']
+        y='Area',
+        color='Metric'
     )
 
-    # Show the chart with hover functionality
-    st.altair_chart(chart, use_container_width=True)
+    rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
 
-    # Show the score at the selected frame
+    st.altair_chart(chart + rule, use_container_width=True)
+
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
 
     # Display video frame for selected frame
