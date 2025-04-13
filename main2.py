@@ -181,8 +181,8 @@ if st.session_state.data_processed:
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
     ).properties(
-        width=800,
-        height=400
+        width=400,
+        height=800
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
