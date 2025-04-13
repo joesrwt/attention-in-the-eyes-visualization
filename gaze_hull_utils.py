@@ -1,14 +1,14 @@
+# gaze_hull_utils.py
 import os
-import scipy.io
 import cv2
+import math
 import numpy as np
+import scipy.io
 import pandas as pd
 import matplotlib.pyplot as plt
-import math
 from scipy.spatial import ConvexHull, Delaunay
-from shapely.geometry import MultiPoint, Polygon, LineString, MultiLineString
+from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
-import tempfile
 
 def alpha_shape(points, alpha):
     if len(points) < 4:
@@ -29,7 +29,7 @@ def alpha_shape(points, alpha):
     m = MultiLineString(edge_points)
     return unary_union(list(polygonize(m)))
 
-def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
+def process_video_with_gaze_and_hulls(base_path, video_path, alpha=0.03):
     mat_files = [os.path.join(base_path, f) for f in os.listdir(base_path) if f.endswith('.mat')]
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -53,15 +53,13 @@ def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out_path = "output_with_hulls.mp4"
+    out = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
 
-    frame_numbers = []
-    convex_areas = []
-    concave_areas = []
-
-    temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    out = cv2.VideoWriter(temp_output.name, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-
+    frame_numbers, convex_areas, concave_areas = [], [], []
     frame_num = 0
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -81,7 +79,6 @@ def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
 
         if len(gaze_points_in_frame) >= 3:
             points = np.array(gaze_points_in_frame)
-
             try:
                 hull = ConvexHull(points)
                 hull_pts = points[hull.vertices].reshape((-1, 1, 2))
@@ -89,7 +86,6 @@ def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
                 convex_area = hull.volume
             except:
                 convex_area = 0
-
             try:
                 concave = alpha_shape(points, alpha=alpha)
                 if concave and concave.geom_type == 'Polygon':
@@ -100,7 +96,6 @@ def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
                     concave_area = 0
             except:
                 concave_area = 0
-
             frame_numbers.append(frame_num)
             convex_areas.append(convex_area)
             concave_areas.append(concave_area)
@@ -110,16 +105,11 @@ def compute_hull_areas_and_video(base_path, video_path, alpha=0.03):
 
     cap.release()
     out.release()
-    return frame_numbers, convex_areas, concave_areas, temp_output.name
+    return frame_numbers, convex_areas, concave_areas, out_path
 
-
-def process_video_with_gaze_and_hulls(base_path, video_path, alpha=0.03, save_output=True):
-    return compute_hull_areas_and_video(base_path, video_path, alpha)
-
-
-def generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas, window_size=20, show_plot=True):
+def generate_area_dataframe_and_plot(frame_numbers, convex_areas, concave_areas, window_size=20):
     df = pd.DataFrame({
-        'Frame': frame_nums,
+        'Frame': frame_numbers,
         'Convex Area': convex_areas,
         'Concave Area': concave_areas
     })
@@ -128,16 +118,14 @@ def generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas, wi
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
     df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
 
-    if show_plot:
-        plt.figure(figsize=(12, 6))
-        plt.plot(df.index, df['Convex Area'], alpha=0.3, label='Convex Area (Raw)', color='green')
-        plt.plot(df.index, df['Concave Area'], alpha=0.3, label='Concave Area (Raw)', color='blue')
-        plt.plot(df.index, df['Convex Area (Rolling Avg)'], label='Convex Area (Avg)', color='darkgreen', linewidth=2)
-        plt.plot(df.index, df['Concave Area (Rolling Avg)'], label='Concave Area (Avg)', color='navy', linewidth=2)
-        plt.xlabel("Frame Number")
-        plt.ylabel("Area (px²)")
-        plt.title("Convex vs Concave Hull Area Over Time")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        st.pyplot(plt)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(df.index, df['Convex Area'], alpha=0.3, label='Convex Area (Raw)', color='green')
+    ax.plot(df.index, df['Concave Area'], alpha=0.3, label='Concave Area (Raw)', color='blue')
+    ax.plot(df.index, df['Convex Area (Rolling Avg)'], label=f'Convex Area (Avg)', color='darkgreen', linewidth=2)
+    ax.plot(df.index, df['Concave Area (Rolling Avg)'], label=f'Concave Area (Avg)', color='navy', linewidth=2)
+    ax.set_xlabel("Frame Number")
+    ax.set_ylabel("Area (px²)")
+    ax.set_title("Convex vs Concave Hull Area Over Time")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
