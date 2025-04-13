@@ -8,6 +8,7 @@ import streamlit as st
 import altair as alt
 from scipy.spatial import ConvexHull
 import alphashape
+
 from shapely.geometry import MultiPoint
 
 # Helper function to load gaze data
@@ -181,20 +182,43 @@ if st.session_state.data_processed:
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
     ).properties(
-        width=900,
-        height=500
+        width=600,
+        height=300
     )
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
-    # Create two main columns
-    col_chart, col_right = st.columns([2, 1])  # Wider chart on the left
+    # Layer the chart with the rule
+    layered_chart = alt.layer(
+        chart,
+        rule
+    ).configure_legend(
+        orient='bottom',  # Place the legend below the chart
+        title=None  # Optional: Remove the title if not needed
+    )
 
-    with col_chart:
-        st.altair_chart(chart + rule, use_container_width=True)
+    # Layout with two columns side-by-side
+    col_plot, col_img_score = st.columns([1, 1])
 
-    with col_right:
-        # Subdivide the right column
+    with col_plot:
+        st.altair_chart(layered_chart, use_container_width=True)
+
+    with col_img_score:
+        # Display the video frame
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
+        
+        # Draw gaze points overlay on the image
+        gaze_points = []
+        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
+            frame_indices = (timestamps / 1000 * fps).astype(int)
+            if current_frame in frame_indices:
+                idx = np.where(frame_indices == current_frame)[0]
+                for i in idx:
+                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
+                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
+                    gaze_points.append((gx, gy))
+        for gx, gy in gaze_points:
+            cv2.circle(frame_rgb, (gx, gy), 5, (0, 255, 0), -1)  # Overlay gaze points with green circles
 
+        st.image(frame_rgb, caption=f"Frame {current_frame}", width=350)
+        # Display the score
         st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
