@@ -11,7 +11,7 @@ import alphashape
 from shapely.geometry import MultiPoint
 
 # Helper function to load gaze data
-# @st.cache_data
+@st.cache_data
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -29,7 +29,7 @@ def load_gaze_data(mat_files):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-# @st.cache_resource
+@st.cache_resource
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -151,7 +151,7 @@ if st.session_state.data_processed:
     video_frames = st.session_state.video_frames
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
-    frame_increment = 5
+    frame_increment = 10
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
@@ -162,34 +162,29 @@ if st.session_state.data_processed:
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("Previous <5"):
+        if st.button("Previous <10"):
             st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
     with col3:
-        if st.button("Next >5"):
+        if st.button("Next >10"):
             st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
     # Updated frame after navigation
     current_frame = st.session_state.current_frame
 
-    # Memoized data preparation function
-    @st.cache_data
-    def prepare_chart_data(df):
-        df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-            'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-        ], var_name='Metric', value_name='Area')
-        return df_melt
-
-    df_melt = prepare_chart_data(df)
+    # Prepare data for Altair chart
+    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+    ], var_name='Metric', value_name='Area')
 
     chart = alt.Chart(df_melt).mark_line().encode(
-        x='Frame',
-        y='Area',
-        color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
-                        legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart
-    ).properties(
-        width=500,
-        height=300
-    )
+    x='Frame',
+    y='Area',
+    color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
+                    legend=alt.Legend(orient='bottom', title='Hull Type'))  # Move legend below the chart
+).properties(
+    width=500,
+    height=300
+)
 
     rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
