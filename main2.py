@@ -151,7 +151,7 @@ if st.session_state.data_processed:
     video_frames = st.session_state.video_frames
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
-    frame_increment = 10
+    frame_increment = 5
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
@@ -162,10 +162,10 @@ if st.session_state.data_processed:
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("Previous <10"):
+        if st.button("Previous <5"):
             st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
     with col3:
-        if st.button("Next >10"):
+        if st.button("Next >5"):
             st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
     # Updated frame after navigation
@@ -190,10 +190,31 @@ if st.session_state.data_processed:
     col_chart, col_right = st.columns([2, 1])  # Wider chart on the left
 
     with col_chart:
+        # Upper half: main chart
+        st.subheader("Convex vs Concave Hull Area Over Time")
         st.altair_chart(chart + rule, use_container_width=True)
 
+        # Lower half: zoomed-in chart
+        zoom_range = 20  # Set the zoom range for the zoomed-in chart (adjust as needed)
+        zoomed_df = df[(df['Frame'] >= current_frame - zoom_range) & (df['Frame'] <= current_frame + zoom_range)]
+        zoomed_df_melt = zoomed_df.reset_index().melt(id_vars='Frame', value_vars=[
+            'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+        ], var_name='Metric', value_name='Area')
+
+        zoom_chart = alt.Chart(zoomed_df_melt).mark_line().encode(
+            x='Frame',
+            y='Area',
+            color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
+        ).properties(
+            width=600,
+            height=150  # Adjust the height of the zoomed-in chart for better visibility
+        )
+        
+        # Zoomed-in chart below the main chart
+        st.altair_chart(zoom_chart, use_container_width=True)
+
     with col_right:
-        # Subdivide the right column
+        # Frame display and score metric
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
         st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
 
