@@ -175,4 +175,3 @@ if uploaded_files:
 
         else:
             st.error("⚠️ Please make sure to upload a .mov video file.")
-
