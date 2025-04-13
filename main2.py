@@ -172,7 +172,7 @@ if st.session_state.data_processed:
     current_frame = st.session_state.current_frame
 
     # Memoized data preparation function
-    @st.experimental_memo
+    @st.cache_data
     def prepare_chart_data(df):
         df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
             'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
