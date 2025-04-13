@@ -5,3 +5,4 @@ matplotlib
 scipy
 shapely
 opencv-python-headless
+alphashape
