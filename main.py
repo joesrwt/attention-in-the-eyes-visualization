@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import os
 from gaze_hull_utils import process_video_with_gaze_and_hulls, generate_area_dataframe_and_plot
 
