@@ -9,32 +9,29 @@ This app visualizes gaze data over a video by plotting convex and concave hulls 
 and shows area analysis over time.
 """)
 
-# Function to list folders with corresponding .mat files
-def get_folders_with_mat_files(directory):
-    return [f for f in os.listdir(directory) if os.path.isdir(f) and not f.startswith('.') and any(f.endswith('.mat') for f in os.listdir(os.path.join(directory, f)))]
-
-# Get folders that contain .mat files
-base_directory = "./"  # Replace with the correct directory where your data folders are stored
-folders = get_folders_with_mat_files(base_directory)
-
-# Folder selection dropdown
+# Folder options for gaze data (exclude hidden folders)
+folders = [f for f in os.listdir('./') if os.path.isdir(f) and not f.startswith('.')]
 selected_folder = st.selectbox("Select a folder with gaze data", folders)
 
-# Construct the paths based on the selected folder
-base_path = os.path.join(base_directory, selected_folder)
+# Define paths for video and gaze data
+base_path = f"./{selected_folder}"
 video_path = f"./raw clip/{selected_folder}_c.mov"
 
-# Show video with gaze and hulls
-if st.button("▶️ Run Gaze + Hull Video"):
-    st.info("Processing video. This may take a moment...")
-    output_path = process_video_with_gaze_and_hulls(base_path, video_path)
-    
-    # Directly display the video output
-    st.video(output_path)
+# Check if paths exist before processing
+if not os.path.exists(base_path):
+    st.error(f"Folder {base_path} does not exist. Please check the folder.")
+elif not os.path.exists(video_path):
+    st.error(f"Video file {video_path} does not exist. Please check the video file.")
+else:
+    # Show video with gaze and hulls
+    if st.button("▶️ Run Gaze + Hull Video"):
+        st.info("Processing video. This may take a moment...")
+        output_path = process_video_with_gaze_and_hulls(base_path, video_path)
+        st.video(output_path)
 
-# Show hull area analysis plot
-if st.button("📈 Show Hull Area Analysis"):
-    st.info("Generating plot...")
-    frame_nums, convex_areas, concave_areas = process_video_with_gaze_and_hulls(base_path, video_path)
-    df = generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas)
-    st.dataframe(df)
+    # Show hull area analysis plot
+    if st.button("📈 Show Hull Area Analysis"):
+        st.info("Generating plot...")
+        frame_nums, convex_areas, concave_areas = process_video_with_gaze_and_hulls(base_path, video_path)
+        df = generate_area_dataframe_and_plot(frame_nums, convex_areas, concave_areas)
+        st.dataframe(df)
