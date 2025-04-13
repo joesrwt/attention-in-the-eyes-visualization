@@ -9,6 +9,8 @@ import altair as alt
 from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
+import alphashape
+
 
 # Helper functions to calculate convex and concave areas (same as before)
 
