@@ -10,27 +10,9 @@ from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 
+# Helper functions to calculate convex and concave areas (same as before)
 
-def alpha_shape(points, alpha):
-    if len(points) < 4:
-        return MultiPoint(list(points)).convex_hull
-    tri = Delaunay(points)
-    edges = set()
-    for ia, ib, ic in tri.simplices:
-        pa, pb, pc = points[ia], points[ib], points[ic]
-        a, b, c = np.linalg.norm(pb - pa), np.linalg.norm(pc - pb), np.linalg.norm(pa - pc)
-        s = (a + b + c) / 2.0
-        area = math.sqrt(max(s * (s - a) * (s - b) * (s - c), 0))
-        if area == 0:
-            continue
-        circum_r = a * b * c / (4.0 * area)
-        if circum_r < 1.0 / alpha:
-            edges.update([(ia, ib), (ib, ic), (ic, ia)])
-    edge_points = [LineString([points[i], points[j]]) for i, j in edges]
-    m = MultiLineString(edge_points)
-    return unary_union(list(polygonize(m)))
-
-
+@st.cache  # Caching function to avoid recomputation
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -48,12 +30,12 @@ def load_gaze_data(mat_files):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-
+@st.cache  # Cache the video processing function as well
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         st.error("❌ Cannot open video.")
-        return None, None
+        return None
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -62,7 +44,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
     frame_numbers = []
     convex_areas = []
     concave_areas = []
-    video_frames = []  # List to store frames for later retrieval
+    video_frames = []  # Store frames
 
     frame_num = 0
     while cap.isOpened():
@@ -84,28 +66,22 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
             points = np.array(gaze_points)
             try:
                 convex_area = ConvexHull(points).volume
-            except Exception as e:
+            except:
                 convex_area = 0
-                print(f"Error computing convex hull area at frame {frame_num}: {e}")
             try:
                 concave = alpha_shape(points, alpha)
                 concave_area = concave.area if concave and concave.geom_type == 'Polygon' else 0
-            except Exception as e:
+            except:
                 concave_area = 0
-                print(f"Error computing concave hull area at frame {frame_num}: {e}")
 
             frame_numbers.append(frame_num)
             convex_areas.append(convex_area)
             concave_areas.append(concave_area)
-            video_frames.append(frame)  # Store the frame for later
+            video_frames.append(frame)
 
         frame_num += 1
 
     cap.release()
-
-    if len(frame_numbers) == 0:
-        st.warning("No valid frames found in the video.")
-        return None, None
 
     df = pd.DataFrame({
         'Frame': frame_numbers,
@@ -117,72 +93,71 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
     df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
     df['Score'] = df['Score'].fillna(0)
-    
-    return df, video_frames  # Return video frames directly
 
+    return df, video_frames
 
-# ========== Streamlit UI ==========
+# Streamlit UI
 
 st.title("🎯 Gaze & Hull Analysis Tool")
 
-uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
+# Form for uploading files
+with st.form(key='file_upload_form'):
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
+    submit_button = st.form_submit_button("Submit Files")
 
-if uploaded_files:
-    mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
-    mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
+if submit_button:
+    if uploaded_files:
+        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
+        mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
 
-    if not mat_files or not mov_files:
-        st.warning("Please upload at least one `.mat` file and one `.mov` video.")
-    else:
-        st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
+        if not mat_files or not mov_files:
+            st.warning("Please upload at least one `.mat` file and one `.mov` video.")
+        else:
+            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
 
-        # Save uploaded files temporarily
-        temp_dir = "temp_data"
-        os.makedirs(temp_dir, exist_ok=True)
+            # Save uploaded files temporarily
+            temp_dir = "temp_data"
+            os.makedirs(temp_dir, exist_ok=True)
 
-        mat_paths = []
-        for file in mat_files:
-            path = os.path.join(temp_dir, file.name)
-            with open(path, "wb") as f:
-                f.write(file.getbuffer())
-            mat_paths.append(path)
+            mat_paths = []
+            for file in mat_files:
+                path = os.path.join(temp_dir, file.name)
+                with open(path, "wb") as f:
+                    f.write(file.getbuffer())
+                mat_paths.append(path)
 
-        video_file = mov_files[0]
-        video_path = os.path.join(temp_dir, video_file.name)
-        with open(video_path, "wb") as f:
-            f.write(video_file.getbuffer())
+            video_file = mov_files[0]
+            video_path = os.path.join(temp_dir, video_file.name)
+            with open(video_path, "wb") as f:
+                f.write(video_file.getbuffer())
 
-        # Processing
-        with st.spinner("Processing gaze data and computing hull areas..."):
-            gaze_data = load_gaze_data(mat_paths)
-            df, video_frames = process_video_analysis(gaze_data, video_path)
+            # Processing and caching
+            with st.spinner("Processing gaze data and computing hull areas..."):
+                gaze_data = load_gaze_data(mat_paths)
+                df, video_frames = process_video_analysis(gaze_data, video_path)
 
-        if df is not None and not df.empty:
-            st.subheader("📊 Convex vs Concave Hull Area Over Time")
+            # Display the results
+            if df is not None and not df.empty:
+                st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
-            # Slider for selecting frame
-            frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
+                frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
-            # Display the video frame for the selected frame (using precomputed frames)
-            frame = video_frames[frame_slider]
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            st.image(frame_rgb, caption=f"Frame {frame_slider}", use_column_width=True)
+                df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+                    'Convex Area', 'Concave Area', 
+                    'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+                ], var_name='Metric', value_name='Area')
 
-            df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-                'Convex Area', 'Concave Area', 
-                'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-            ], var_name='Metric', value_name='Area')
+                chart = alt.Chart(df_melt).mark_line().encode(
+                    x='Frame',
+                    y='Area',
+                    color='Metric'
+                )
 
-            # Plotting with larger size and color adjustments
-            chart = alt.Chart(df_melt).mark_line(opacity=0.4).encode(
-                x='Frame',
-                y='Area',
-                color=alt.Color('Metric', scale=alt.Scale(domain=['Convex Area', 'Concave Area', 'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue', 'lightgreen', 'lightblue'])),
-                strokeWidth=alt.value(2)
-            ).properties(width=800, height=400)
+                rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
 
-            rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
+                st.altair_chart(chart + rule, use_container_width=True)
 
-            st.altair_chart(chart + rule, use_container_width=True)
+                st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
 
-            st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
+                # Display video frame for selected frame
+                st.image(video_frames[frame_slider], caption=f"Frame {frame_slider}", use_column_width=True)
