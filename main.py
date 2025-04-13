@@ -165,13 +165,3 @@ if uploaded_files:
                     'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
                 })
                 st.line_chart(chart_data.set_index('Frame'))
-
-                # Display Plot using `st.line_chart`
-                st.subheader("Convex vs Concave Hull Area Over Time")
-
-                # Create the plot for convex and concave areas
-                chart_data = pd.DataFrame({
-                    'Frame': df.index,
-                    'Convex Area (Avg)': df['Convex Area (Rolling Avg)'],
-                    'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
-                })
