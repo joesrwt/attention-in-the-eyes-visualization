@@ -193,20 +193,6 @@ if st.session_state.data_processed:
         st.altair_chart(chart + rule, use_container_width=True)
 
     with col_right:
-        # Subdivide the right column
-        # Overlay gaze points on the current frame
-        frame_bgr = video_frames[current_frame].copy()
-        h, w, _ = frame_bgr.shape
-        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data:
-            frame_indices = (timestamps / 1000 * cap.get(cv2.CAP_PROP_FPS)).astype(int)
-            if current_frame in frame_indices:
-                idx = np.where(frame_indices == current_frame)[0]
-                for i in idx:
-                     gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
-                     gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
-                     cv2.circle(frame_bgr, (gx, gy), 4, (0, 0, 255), -1)  # red dot
-
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame} with Gaze Points", use_column_width=True)
-
+        frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
+        st.image(frame_rgb, caption=f"Frame {current_frame}", use_column_width=True)
         st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
