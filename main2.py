@@ -165,21 +165,8 @@ if st.session_state.data_processed:
     # Prepare data for plotting
     df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']]
 
-    # Create Altair plot
-    line_chart = alt.Chart(df_plot.reset_index()).mark_line().encode(
-        x='Frame',
-        y='value',
-        color='variable:N'
-    ).transform_fold(
-        ['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-        as_=['variable', 'value']
-    )
-
-    # Add a vertical line for the selected frame
-    line_at_frame = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='black').encode(x='Frame')
-
-    # Show the chart with the selected frame indicator
-    st.altair_chart(line_chart + line_at_frame, use_container_width=True)
+    # Display the line chart with rolling averages
+    st.line_chart(df_plot)
 
     # Show the score at the selected frame
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
