@@ -166,10 +166,10 @@ if st.session_state.data_processed:
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("Previous Frame"):
+        if st.button("Previous #5"):
             st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
     with col3:
-        if st.button("Next Frame"):
+        if st.button("Next #5"):
             st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
     # Updated frame after navigation
