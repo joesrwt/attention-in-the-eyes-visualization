@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import os
 from gaze_hull_utils import process_video_with_gaze_and_hulls, generate_area_dataframe_and_plot
 
@@ -29,11 +29,8 @@ if st.button("▶️ Run Gaze + Hull Video"):
     st.info("Processing video. This may take a moment...")
     output_path = process_video_with_gaze_and_hulls(base_path, video_path)
     
-    # Check if output video is successfully created
-    if os.path.exists(output_path):
-        st.video(output_path)
-    else:
-        st.error("Video processing failed. The output video file does not exist.")
+    # Directly display the video output
+    st.video(output_path)
 
 # Show hull area analysis plot
 if st.button("📈 Show Hull Area Analysis"):
