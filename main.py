@@ -144,12 +144,12 @@ if uploaded_files:
             df = run_hull_analysis_plot(mat_dir, video_path)
 
             if df is not None:
-                # Frame Slider
+                # Create Slider for Frame Selection
                 frame_slider = st.slider("Select Frame", min_value=df.index.min(), max_value=df.index.max(), value=df.index.min(), step=1)
 
                 selected_frame = df.loc[frame_slider]
 
-                # Display the selected frame from the video
+                # Display the selected frame from the video (with hulls)
                 cap = cv2.VideoCapture(video_path)
                 if cap.isOpened():
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)
@@ -184,20 +184,18 @@ if uploaded_files:
                         st.image(frame, channels="BGR", caption=f"Frame {frame_slider}", use_container_width=True)
                     cap.release()
 
-                # Display Frame Info and Score
+                # Display Score
                 st.write(f"**Frame {frame_slider}**")
                 st.write(f"Score: {selected_frame['Score']:.2f}")
 
-                # Plot Analysis
-                fig, ax = plt.subplots(figsize=(12, 6))
-                ax.plot(df.index, df['Convex Area'], alpha=0.3, label='Convex Area (Raw)', color='green')
-                ax.plot(df.index, df['Concave Area'], alpha=0.3, label='Concave Area (Raw)', color='blue')
-                ax.plot(df.index, df['Convex Area (Rolling Avg)'], label=f'Convex Area (Avg, w={20})', color='darkgreen', linewidth=2)
-                ax.plot(df.index, df['Concave Area (Rolling Avg)'], label=f'Concave Area (Avg, w={20})', color='navy', linewidth=2)
-                ax.set_xlabel("Frame Number")
-                ax.set_ylabel("Area (px²)")
-                ax.set_title("Convex vs Concave Hull Area Over Time")
-                ax.legend()
-                ax.grid(True)
-                plt.tight_layout()
-                st.pyplot(fig)
+                # Display Plot using `st.line_chart`
+                st.subheader("Convex vs Concave Hull Area Over Time")
+
+                # Create the plot for convex and concave areas
+                chart_data = pd.DataFrame({
+                    'Frame': df.index,
+                    'Convex Area (Avg)': df['Convex Area (Rolling Avg)'],
+                    'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
+                })
+
+                st.line_chart(chart_data.set_index('Frame'))
