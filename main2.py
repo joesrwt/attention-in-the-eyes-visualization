@@ -6,15 +6,14 @@ import pandas as pd
 import scipy.io
 import streamlit as st
 import altair as alt
-from scipy.spatial import ConvexHull, Delaunay
-from shapely.geometry import MultiPoint, LineString, MultiLineString
-from shapely.ops import polygonize, unary_union
+from scipy.spatial import ConvexHull
 import alphashape
 
+from shapely.geometry import MultiPoint
 
-# Helper functions to calculate convex and concave areas (same as before)
 
-@st.cache_data  # Use st.cache_data for loading gaze data
+# Helper function to load gaze data
+@st.cache_data
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -31,9 +30,9 @@ def load_gaze_data(mat_files):
         gaze_y_norm = gaze_y / np.max(gaze_y)
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
-    
-@st.cache_resource  # Use st.cache_resource for video processing and handling large files
-# Modify the code for concave hull calculation
+
+
+@st.cache_resource
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -47,7 +46,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     frame_numbers = []
     convex_areas = []
     concave_areas = []
-    video_frames = []  # Store frames
+    video_frames = []
 
     frame_num = 0
     while cap.isOpened():
@@ -71,9 +70,8 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
                 convex_area = ConvexHull(points).volume
             except:
                 convex_area = 0
-            
+
             try:
-                # Use alphashape to get the concave hull
                 concave = alphashape.alphashape(points, alpha)
                 concave_area = concave.area if concave.geom_type == 'Polygon' else 0
             except:
@@ -101,15 +99,16 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 
     return df, video_frames
 
-# Streamlit UI
 
+# Streamlit UI
 st.title("🎯 Gaze & Hull Analysis Tool")
 
-# Check if the data is already in session_state
 if 'data_processed' not in st.session_state:
     st.session_state.data_processed = False
+if 'current_frame' not in st.session_state:
+    st.session_state.current_frame = 0
 
-# Form for uploading files
+# File upload form
 with st.form(key='file_upload_form'):
     uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
     submit_button = st.form_submit_button("Submit Files")
@@ -124,7 +123,6 @@ if submit_button:
         else:
             st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
 
-            # Save uploaded files temporarily
             temp_dir = "temp_data"
             os.makedirs(temp_dir, exist_ok=True)
 
@@ -140,53 +138,59 @@ if submit_button:
             with open(video_path, "wb") as f:
                 f.write(video_file.getbuffer())
 
-            # Processing and caching
             with st.spinner("Processing gaze data and computing hull areas..."):
                 gaze_data = load_gaze_data(mat_paths)
                 df, video_frames = process_video_analysis(gaze_data, video_path)
 
-                # Store processed data in session state
                 st.session_state.df = df
                 st.session_state.video_frames = video_frames
                 st.session_state.data_processed = True
+                st.session_state.current_frame = int(df.index.min())
 
             st.success("✅ Data processing completed successfully!")
 
-# If data has already been processed, load it from session state
+# Display analysis
 if st.session_state.data_processed:
     df = st.session_state.df
     video_frames = st.session_state.video_frames
+    current_frame = st.session_state.current_frame
+    min_frame, max_frame = int(df.index.min()), int(df.index.max())
+    frame_increment = 5
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
-    frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
+    # Frame slider
+    new_frame = st.slider("Select Frame", min_frame, max_frame, current_frame)
+    st.session_state.current_frame = new_frame
 
-    # Melt the DataFrame to only include rolling averages
+    # Navigation buttons
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col1:
+        if st.button("Previous Frame"):
+            st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
+    with col3:
+        if st.button("Next Frame"):
+            st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
+
+    # Updated frame after navigation
+    current_frame = st.session_state.current_frame
+
+    # Prepare data for Altair chart
     df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
         'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
     ], var_name='Metric', value_name='Area')
 
-    # Create the Altair chart with specific colors for the rolling averages
     chart = alt.Chart(df_melt).mark_line().encode(
         x='Frame',
         y='Area',
         color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
     )
-
-    # Add a vertical line for the selected frame
-    rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
-
-    # Display the chart with the vertical rule
+    rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
     st.altair_chart(chart + rule, use_container_width=True)
 
-    # Display the score for the selected frame
-    st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
+    # Display score
+    st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
 
-    # Process the video frame as before
-frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
-
-# Display the frame in its original color
-frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
-st.image(frame_rgb, caption=f"Frame {frame_slider}", width=700)  # Adjust the width as needed
-
-
+    # Display video frame
+    frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
+    st.image(frame_rgb, caption=f"Frame {current_frame}", width=700)
