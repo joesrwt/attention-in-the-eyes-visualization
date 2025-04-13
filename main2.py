@@ -10,27 +10,8 @@ from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 
-
-def alpha_shape(points, alpha):
-    if len(points) < 4:
-        return MultiPoint(list(points)).convex_hull
-    tri = Delaunay(points)
-    edges = set()
-    for ia, ib, ic in tri.simplices:
-        pa, pb, pc = points[ia], points[ib], points[ic]
-        a, b, c = np.linalg.norm(pb - pa), np.linalg.norm(pc - pb), np.linalg.norm(pa - pc)
-        s = (a + b + c) / 2.0
-        area = math.sqrt(max(s * (s - a) * (s - b) * (s - c), 0))
-        if area == 0:
-            continue
-        circum_r = a * b * c / (4.0 * area)
-        if circum_r < 1.0 / alpha:
-            edges.update([(ia, ib), (ib, ic), (ic, ia)])
-    edge_points = [LineString([points[i], points[j]]) for i, j in edges]
-    m = MultiLineString(edge_points)
-    return unary_union(list(polygonize(m)))
-
-
+# Cache gaze data
+@st.cache_data
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -48,7 +29,8 @@ def load_gaze_data(mat_files):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-
+# Cache video processing
+@st.cache_resource
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -154,17 +136,16 @@ if uploaded_files:
             frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
             df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-                'Convex Area', 'Concave Area', 
                 'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
             ], var_name='Metric', value_name='Area')
 
             chart = alt.Chart(df_melt).mark_line().encode(
                 x='Frame',
                 y='Area',
-                color=alt.Color('Metric', scale=alt.Scale(domain=['Convex Area', 'Concave Area'], range=['green', 'blue']))
+                color=alt.Color('Metric', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']))
             )
 
-            # Make raw areas more transparent
+            # Make the raw areas more transparent
             chart = chart.mark_line(opacity=0.3)
 
             rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
