@@ -165,8 +165,19 @@ if st.session_state.data_processed:
     # Prepare data for plotting
     df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']]
 
-    # Display the line chart with rolling averages
-    st.line_chart(df_plot)
+    # Create the Altair chart with hover effect
+    chart = alt.Chart(df_plot.reset_index()).mark_line().encode(
+        x='Frame',
+        y='value',
+        color='variable:N',
+        tooltip=['Frame', 'variable', 'value']
+    ).transform_fold(
+        ['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
+        as_=['variable', 'value']
+    )
+
+    # Show the chart with hover functionality
+    st.altair_chart(chart, use_container_width=True)
 
     # Show the score at the selected frame
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
