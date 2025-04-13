@@ -102,7 +102,6 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     return df, video_frames
 
 
-
 # Streamlit UI
 
 st.title("🎯 Gaze & Hull Analysis Tool")
@@ -163,21 +162,13 @@ if st.session_state.data_processed:
 
     frame_slider = st.slider("Select Frame", int(df.index.min()), int(df.index.max()), int(df.index.min()))
 
-    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-        'Convex Area', 'Concave Area', 
-        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-    ], var_name='Metric', value_name='Area')
+    # Prepare data for plotting
+    df_plot = df[['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)']]
 
-    chart = alt.Chart(df_melt).mark_line().encode(
-        x='Frame',
-        y='Area',
-        color='Metric'
-    )
+    # Display the line chart with rolling averages
+    st.line_chart(df_plot)
 
-    rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
-
-    st.altair_chart(chart + rule, use_container_width=True)
-
+    # Show the score at the selected frame
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
 
     # Display video frame for selected frame
