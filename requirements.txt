@@ -3,6 +3,7 @@ numpy
 pandas
 matplotlib
 scipy
-shapely
 opencv-python-headless
 alphashape
+altair==5.2.0
+shapely==2.0.1
