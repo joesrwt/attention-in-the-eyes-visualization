@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import scipy.io
 import streamlit as st
-import tempfile
-from scipy.spatial import ConvexHull
+import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull, Delaunay
 from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
+import tempfile
 
 
 # === Alpha Shape Function ===
@@ -52,8 +53,8 @@ def load_gaze_data(base_path):
     return gaze_data_per_viewer
 
 
-# === Preprocess Video and Generate Frames with Hulls ===
-def preprocess_video_and_generate_frames(base_path, video_path, alpha=0.007):
+# === Run Hull Analysis and Plot ===
+def run_hull_analysis_plot(base_path, video_path, alpha=0.007, window_size=20):
     gaze_data_per_viewer = load_gaze_data(base_path)
 
     cap = cv2.VideoCapture(video_path)
@@ -65,10 +66,13 @@ def preprocess_video_and_generate_frames(base_path, video_path, alpha=0.007):
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+    frame_numbers = []
+    convex_areas = []
+    concave_areas = []
+
     frame_num = 0
-    processed_frames = []
     while cap.isOpened():
-        ret, frame = cap.read()
+        ret, _ = cap.read()
         if not ret:
             break
 
@@ -85,25 +89,36 @@ def preprocess_video_and_generate_frames(base_path, video_path, alpha=0.007):
         if len(gaze_points) >= 3:
             points = np.array(gaze_points)
             try:
-                hull = ConvexHull(points)
-                hull_pts = points[hull.vertices].reshape((-1, 1, 2))
-                cv2.polylines(frame, [hull_pts], isClosed=True, color=(0, 255, 0), thickness=2)
+                convex_area = ConvexHull(points).volume
             except:
-                pass
+                convex_area = 0
             try:
                 concave = alpha_shape(points, alpha)
-                if concave and concave.geom_type == 'Polygon':
-                    exterior = np.array(concave.exterior.coords).astype(np.int32)
-                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
+                concave_area = concave.area if concave and concave.geom_type == 'Polygon' else 0
             except:
-                pass
+                concave_area = 0
 
-        # Save the frame as an image to list
-        processed_frames.append(frame)
+            frame_numbers.append(frame_num)
+            convex_areas.append(convex_area)
+            concave_areas.append(concave_area)
+
         frame_num += 1
 
     cap.release()
-    return processed_frames
+
+    # === Dataframe and Plotting ===
+    df = pd.DataFrame({
+        'Frame': frame_numbers,
+        'Convex Area': convex_areas,
+        'Concave Area': concave_areas
+    })
+    df.set_index('Frame', inplace=True)
+    df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
+    df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
+    df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
+    df['Score'] = df['Score'].fillna(0)
+
+    return df
 
 
 # === Streamlit App ===
@@ -126,23 +141,61 @@ if uploaded_files:
 
         if video_path:
             st.success("✅ Files uploaded successfully.")
-            processed_frames = preprocess_video_and_generate_frames(mat_dir, video_path)
+            df = run_hull_analysis_plot(mat_dir, video_path)
 
-            if processed_frames is not None:
+            if df is not None:
                 # Create Slider for Frame Selection
-                num_frames = len(processed_frames)
-                frame_slider = st.slider("Select Frame", min_value=0, max_value=num_frames-1, value=0, step=1)
+                frame_slider = st.slider("Select Frame", min_value=df.index.min(), max_value=df.index.max(), value=df.index.min(), step=1)
 
-                # Display the selected frame as an image
-                st.image(processed_frames[frame_slider], caption=f"Frame {frame_slider}", use_container_width=True)
+                selected_frame = df.loc[frame_slider]
 
-                # Display Score (based on your analysis, adjust as needed)
+                # Display the selected frame from the video (with hulls)
+                cap = cv2.VideoCapture(video_path)
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_slider)
+                    ret, frame = cap.read()
+                    if ret:
+                        # Draw Convex Hull (Green)
+                        gaze_points = []
+                        for gaze_x_norm, gaze_y_norm, timestamps in load_gaze_data(mat_dir):
+                            frame_indices = (timestamps / 1000 * cap.get(cv2.CAP_PROP_FPS)).astype(int)
+                            if frame_slider in frame_indices:
+                                idx = np.where(frame_indices == frame_slider)[0]
+                                for i in idx:
+                                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (frame.shape[1] - 1))
+                                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (frame.shape[0] - 1))
+                                    gaze_points.append((gx, gy))
+
+                        if len(gaze_points) >= 3:
+                            points = np.array(gaze_points)
+                            try:
+                                hull = ConvexHull(points)
+                                hull_pts = points[hull.vertices].reshape((-1, 1, 2))
+                                cv2.polylines(frame, [hull_pts], isClosed=True, color=(0, 255, 0), thickness=2)
+                            except:
+                                pass
+                            try:
+                                concave = alpha_shape(points, alpha)
+                                if concave and concave.geom_type == 'Polygon':
+                                    exterior = np.array(concave.exterior.coords).astype(np.int32)
+                                    cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
+                            except:
+                                pass
+                        st.image(frame, channels="BGR", caption=f"Frame {frame_slider}", use_container_width=True)
+                    cap.release()
+
+                # Display Score
                 st.write(f"**Frame {frame_slider}**")
-                # You can calculate score as before, if needed:
-                # score = calculate_score(frame_slider) 
-                # st.write(f"Score: {score:.2f}")
-                
-                # Optional: Display a chart with convex vs concave area analysis (if available)
-                # Example: 
-                # chart_data = pd.DataFrame(...)
-                # st.line_chart(chart_data)
+                st.write(f"Score: {selected_frame['Score']:.2f}")
+
+                # Display Plot using `st.line_chart`
+                st.subheader("Convex vs Concave Hull Area Over Time")
+
+                # Create the plot for convex and concave areas
+                chart_data = pd.DataFrame({
+                    'Frame': df.index,
+                    'Convex Area (Avg)': df['Convex Area (Rolling Avg)'],
+                    'Concave Area (Avg)': df['Concave Area (Rolling Avg)']
+                })
+
+                st.line_chart(chart_data.set_index('Frame'))
