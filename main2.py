@@ -12,7 +12,7 @@ from shapely.ops import polygonize, unary_union
 
 # Helper functions to calculate convex and concave areas (same as before)
 
-@st.cache  # Caching function to avoid recomputation
+@st.cache_data  # Use st.cache_data for loading gaze data
 def load_gaze_data(mat_files):
     gaze_data_per_viewer = []
     for mat_file in mat_files:
@@ -30,7 +30,7 @@ def load_gaze_data(mat_files):
         gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
     return gaze_data_per_viewer
 
-@st.cache  # Cache the video processing function as well
+@st.cache_resource  # Use st.cache_resource for video processing and handling large files
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.03, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
