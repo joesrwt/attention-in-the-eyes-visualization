@@ -182,5 +182,11 @@ if st.session_state.data_processed:
     # Display the score for the selected frame
     st.metric("Score at Selected Frame", f"{df.loc[frame_slider, 'Score']:.3f}")
 
-    # Display the selected video frame
-    st.image(video_frames[frame_slider], caption=f"Frame {frame_slider}", use_column_width=True)
+    # Process the video frame as before
+frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
+
+# Display the frame in its original color
+frame_rgb = cv2.cvtColor(video_frames[frame_slider], cv2.COLOR_BGR2RGB)
+st.image(frame_rgb, caption=f"Frame {frame_slider}", width=700)  # Adjust the width as needed
+
+
