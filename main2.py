@@ -167,11 +167,13 @@ if uploaded_files:
                 'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
             ], var_name='Metric', value_name='Area')
 
-            chart = alt.Chart(df_melt).mark_line().encode(
+            # Plotting with larger size and color adjustments
+            chart = alt.Chart(df_melt).mark_line(opacity=0.4).encode(
                 x='Frame',
                 y='Area',
-                color='Metric'
-            )
+                color=alt.Color('Metric', scale=alt.Scale(domain=['Convex Area', 'Concave Area', 'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue', 'lightgreen', 'lightblue'])),
+                strokeWidth=alt.value(2)
+            ).properties(width=800, height=400)
 
             rule = alt.Chart(pd.DataFrame({'Frame': [frame_slider]})).mark_rule(color='red').encode(x='Frame')
 
