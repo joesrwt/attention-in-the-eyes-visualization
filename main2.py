@@ -151,7 +151,7 @@ if st.session_state.data_processed:
     video_frames = st.session_state.video_frames
     current_frame = st.session_state.current_frame
     min_frame, max_frame = int(df.index.min()), int(df.index.max())
-    frame_increment = 5
+    frame_increment = 10
 
     st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
@@ -162,10 +162,10 @@ if st.session_state.data_processed:
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("Previous <5"):
+        if st.button("Previous <10"):
             st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
     with col3:
-        if st.button("Next >5"):
+        if st.button("Next >10"):
             st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
     # Updated frame after navigation
