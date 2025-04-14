@@ -6,30 +6,67 @@ import pandas as pd
 import scipy.io
 import streamlit as st
 import altair as alt
+import requests
+from io import BytesIO
 from scipy.spatial import ConvexHull
 import alphashape
 from shapely.geometry import MultiPoint
 
-# Helper function to load gaze data
-@st.cache_data
-def load_gaze_data(mat_files):
-    gaze_data_per_viewer = []
-    for mat_file in mat_files:
-        mat = scipy.io.loadmat(mat_file)
-        eyetrack = mat['eyetrackRecord']
-        gaze_x = eyetrack['x'][0, 0].flatten()
-        gaze_y = eyetrack['y'][0, 0].flatten()
-        timestamps = eyetrack['t'][0, 0].flatten()
-        valid = (gaze_x != -32768) & (gaze_y != -32768)
-        gaze_x = gaze_x[valid]
-        gaze_y = gaze_y[valid]
-        timestamps = timestamps[valid] - timestamps[0]
-        gaze_x_norm = gaze_x / np.max(gaze_x)
-        gaze_y_norm = gaze_y / np.max(gaze_y)
-        gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
-    return gaze_data_per_viewer
+st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
 
-@st.cache_resource
+# ----------------------------
+# SECTION: CONFIG
+# ----------------------------
+video_files = {
+    "APPAL_2a": "APPAL_2a_hull_area.mp4",
+    "FOODI_2a": "FOODI_2a_hull_area.mp4",
+    "MARCH_12a": "MARCH_12a_hull_area.mp4",
+    "NANN_3a": "NANN_3a_hull_area.mp4",
+    "SHREK_3a": "SHREK_3a_hull_area.mp4",
+    "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
+    "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
+    "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
+}
+
+base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
+user = "nutteerabn"
+repo = "InfoVisual"
+clips_folder = "clips_folder"
+
+# ----------------------------
+# SECTION: HELPERS
+# ----------------------------
+def list_mat_files_from_github_repo(user, repo, folder):
+    api_url = f"https://api.github.com/repos/{user}/{repo}/contents/{folder}"
+    response = requests.get(api_url)
+    if response.status_code != 200:
+        st.error(f"Failed to list files from: {folder}")
+        return []
+    files = response.json()
+    return [f["name"] for f in files if f["name"].endswith(".mat")]
+
+def load_gaze_data_from_github(user, repo, folder):
+    mat_files = list_mat_files_from_github_repo(user, repo, folder)
+    gaze_data = []
+    for filename in mat_files:
+        raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/{folder}/{filename}"
+        res = requests.get(raw_url)
+        if res.status_code == 200:
+            mat = scipy.io.loadmat(BytesIO(res.content))
+            record = mat['eyetrackRecord']
+            x = record['x'][0, 0].flatten()
+            y = record['y'][0, 0].flatten()
+            t = record['t'][0, 0].flatten()
+            valid = (x != -32768) & (y != -32768)
+            gaze_data.append({
+                'x': x[valid] / np.max(x[valid]),
+                'y': y[valid] / np.max(y[valid]),
+                't': t[valid] - t[valid][0]
+            })
+        else:
+            st.warning(f"Could not load {filename}")
+    return [(d['x'], d['y'], d['t']) for d in gaze_data]
+
 def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -40,10 +77,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    frame_numbers = []
-    convex_areas = []
-    concave_areas = []
-    video_frames = []
+    frame_numbers, convex_areas, concave_areas, video_frames = [], [], [], []
 
     frame_num = 0
     while cap.isOpened():
@@ -67,18 +101,18 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
                 convex_area = ConvexHull(points).volume
             except:
                 convex_area = 0
-
             try:
                 concave = alphashape.alphashape(points, alpha)
                 concave_area = concave.area if concave.geom_type == 'Polygon' else 0
             except:
                 concave_area = 0
+        else:
+            convex_area, concave_area = 0, 0
 
-            frame_numbers.append(frame_num)
-            convex_areas.append(convex_area)
-            concave_areas.append(concave_area)
-            video_frames.append(frame)
-
+        frame_numbers.append(frame_num)
+        convex_areas.append(convex_area)
+        concave_areas.append(concave_area)
+        video_frames.append(frame)
         frame_num += 1
 
     cap.release()
@@ -87,8 +121,8 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
         'Frame': frame_numbers,
         'Convex Area': convex_areas,
         'Concave Area': concave_areas
-    })
-    df.set_index('Frame', inplace=True)
+    }).set_index('Frame')
+
     df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
     df['F-C score'] = 1 - (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
@@ -96,124 +130,60 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
 
     return df, video_frames
 
-# Streamlit UI
-st.title("🎯 Gaze & Hull Analysis Tool")
+# ----------------------------
+# SECTION: UI
+# ----------------------------
+st.title("🎬 Gaze Hull Visualization")
 
-# Show uploaded video (if available)
-if 'video_path' in st.session_state:
-    st.video(st.session_state['video_path'])
+selected_video = st.selectbox("🎥 เลือกวิดีโอ", list(video_files.keys()))
+video_url = base_video_url + video_files[selected_video]
+st.video(video_url)
 
-if 'data_processed' not in st.session_state:
-    st.session_state.data_processed = False
-if 'current_frame' not in st.session_state:
-    st.session_state.current_frame = 0
+if st.button("📊 Run Gaze Analysis"):
+    with st.spinner("🔍 Downloading and processing gaze data..."):
+        folder_path = f"{clips_folder}/{selected_video}"
+        gaze_data = load_gaze_data_from_github(user, repo, folder_path)
 
-# File upload form
-with st.form(key='file_upload_form'):
-    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mp4` video", accept_multiple_files=True)
-    submit_button = st.form_submit_button("Submit Files")
+        # Download video temporarily
+        video_temp_path = f"{selected_video}_temp.mp4"
+        if not os.path.exists(video_temp_path):
+            video_response = requests.get(video_url)
+            with open(video_temp_path, "wb") as f:
+                f.write(video_response.content)
 
-if submit_button:
-    if uploaded_files:
-        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
-        mp4_files = [f for f in uploaded_files if f.name.endswith('.mp4')]
+        df, video_frames = process_video_analysis(gaze_data, video_temp_path)
+        if df is not None:
+            st.session_state.df = df
+            st.session_state.frames = video_frames
+            st.session_state.frame_index = int(df.index.min())
+            st.success("✅ Gaze analysis complete!")
 
-        if not mat_files or not mp4_files:
-            st.warning("Please upload at least one `.mat` file and one `.mp4` video.")
-        else:
-            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
+# ----------------------------
+# SECTION: DISPLAY RESULTS
+# ----------------------------
+if "df" in st.session_state and "frames" in st.session_state:
+    df = st.session_state.df
+    video_frames = st.session_state.frames
+    frame_idx = st.slider("🎞️ Select Frame", int(df.index.min()), int(df.index.max()), st.session_state.frame_index)
+    st.session_state.frame_index = frame_idx
 
-            temp_dir = "temp_data"
-            os.makedirs(temp_dir, exist_ok=True)
+    col1, col2 = st.columns([2, 1])
 
-            mat_paths = []
-            for file in mat_files:
-                path = os.path.join(temp_dir, file.name)
-                with open(path, "wb") as f:
-                    f.write(file.getbuffer())
-                mat_paths.append(path)
-
-            video_file = mp4_files[0]
-            video_path = os.path.join(temp_dir, video_file.name)
-            with open(video_path, "wb") as f:
-                f.write(video_file.getbuffer())
-
-            # Save video path in session state
-            st.session_state['video_path'] = video_path
-
-            with st.spinner("Processing gaze data and computing hull areas..."):
-                gaze_data = load_gaze_data(mat_paths)
-                df, video_frames = process_video_analysis(gaze_data, video_path)
-
-                if df is not None:
-                    st.session_state.df = df
-                    st.session_state.video_frames = video_frames
-                    st.session_state.csv_path = os.path.join(temp_dir, "analysis.csv")
-                    df.to_csv(st.session_state.csv_path)
-                    st.session_state.data_processed = True
-                    st.session_state.current_frame = int(df.index.min())
-                    st.success("✅ Data processing completed successfully!")
-
-# Display analysis
-if st.session_state.data_processed:
-    csv_path = st.session_state.get('csv_path')
-    if csv_path and os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
-        df = pd.read_csv(csv_path, index_col='Frame')
-    else:
-        st.error("❌ Could not load the data. Please upload files and run the analysis again.")
-        st.stop()
-
-    video_frames = st.session_state.video_frames
-    current_frame = st.session_state.current_frame
-    min_frame, max_frame = int(df.index.min()), int(df.index.max())
-    frame_increment = 10
-
-    st.subheader("📊 Convex vs Concave Hull Area Over Time")
-
-    # Frame slider
-    new_frame = st.slider("Select Frame", min_frame, max_frame, current_frame)
-    st.session_state.current_frame = new_frame
-
-    # Navigation buttons
-    col1, col2, col3 = st.columns([1, 4, 1])
+    # Chart
     with col1:
-        if st.button("Previous <10"):
-            st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
-    with col3:
-        if st.button("Next >10"):
-            st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
-
-    current_frame = st.session_state.current_frame
-
-    # Prepare data for Altair chart
-    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-    ], var_name='Metric', value_name='Area')
-
-    chart = alt.Chart(df_melt).mark_line().encode(
-        x='Frame',
-        y='Area',
-        color=alt.Color(
-            'Metric:N',
-            scale=alt.Scale(
-                domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-                range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
-            ),
-            legend=alt.Legend(orient='bottom', title='Hull Type')
-        )
-    ).properties(
-        width=500,
-        height=300
-    )
-
-    rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
-
-    col_chart, col_right = st.columns([2, 1])
-
-    with col_chart:
+        df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+            'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+        ], var_name='Metric', value_name='Area')
+        chart = alt.Chart(df_melt).mark_line().encode(
+            x='Frame',
+            y='Area',
+            color=alt.Color('Metric:N', scale=alt.Scale(range=['green', 'deepskyblue']))
+        ).properties(width=600, height=300)
+        rule = alt.Chart(pd.DataFrame({'Frame': [frame_idx]})).mark_rule(color='red').encode(x='Frame')
         st.altair_chart(chart + rule, use_container_width=True)
 
-    with col_right:
-        frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
-        st.metric("Focus-Concentration Score", f"{df.loc[current_frame, 'F-C score']:.3f}")
+    # Frame & Metric
+    with col2:
+        rgb_frame = cv2.cvtColor(video_frames[frame_idx], cv2.COLOR_BGR2RGB)
+        st.image(rgb_frame, caption=f"Frame {frame_idx}", use_container_width=True)
+        st.metric("Focus-Concentration Score", f"{df.loc[frame_idx, 'F-C score']:.3f}")
