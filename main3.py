@@ -1,21 +1,19 @@
 import os
-import math
 import cv2
 import numpy as np
 import pandas as pd
-import scipy.io
+import requests
 import streamlit as st
 import altair as alt
-import requests
+import scipy.io
 from io import BytesIO
 from scipy.spatial import ConvexHull
 import alphashape
-from shapely.geometry import MultiPoint
 
 st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
 
 # ----------------------------
-# SECTION: CONFIG
+# CONFIG
 # ----------------------------
 video_files = {
     "APPAL_2a": "APPAL_2a_hull_area.mp4",
@@ -34,22 +32,23 @@ repo = "InfoVisual"
 clips_folder = "clips_folder"
 
 # ----------------------------
-# SECTION: HELPERS
+# HELPERS
 # ----------------------------
-def list_mat_files_from_github_repo(user, repo, folder):
-    api_url = f"https://api.github.com/repos/{user}/{repo}/contents/{folder}"
-    response = requests.get(api_url)
-    if response.status_code != 200:
-        st.error(f"Failed to list files from: {folder}")
+@st.cache_data(show_spinner=False)
+def list_mat_files(user, repo, folder):
+    url = f"https://api.github.com/repos/{user}/{repo}/contents/{folder}"
+    r = requests.get(url)
+    if r.status_code != 200:
         return []
-    files = response.json()
+    files = r.json()
     return [f["name"] for f in files if f["name"].endswith(".mat")]
 
-def load_gaze_data_from_github(user, repo, folder):
-    mat_files = list_mat_files_from_github_repo(user, repo, folder)
+@st.cache_data(show_spinner=True)
+def load_gaze_data(user, repo, folder):
+    mat_files = list_mat_files(user, repo, folder)
     gaze_data = []
-    for filename in mat_files:
-        raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/{folder}/{filename}"
+    for file in mat_files:
+        raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/{folder}/{file}"
         res = requests.get(raw_url)
         if res.status_code == 200:
             mat = scipy.io.loadmat(BytesIO(res.content))
@@ -63,127 +62,115 @@ def load_gaze_data_from_github(user, repo, folder):
                 'y': y[valid] / np.max(y[valid]),
                 't': t[valid] - t[valid][0]
             })
-        else:
-            st.warning(f"Could not load {filename}")
     return [(d['x'], d['y'], d['t']) for d in gaze_data]
 
-def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        st.error("❌ Cannot open video.")
-        return None, None
+@st.cache_data(show_spinner=True)
+def download_video(video_url, save_path):
+    r = requests.get(video_url)
+    with open(save_path, "wb") as f:
+        f.write(r.content)
 
+@st.cache_data(show_spinner=True)
+def analyze_gaze(gaze_data, video_path, alpha=0.007, window=20):
+    cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    frame_numbers, convex_areas, concave_areas, video_frames = [], [], [], []
-
-    frame_num = 0
+    frames, convex, concave, images = [], [], [], []
+    i = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        gaze_points = []
-        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
-            frame_indices = (timestamps / 1000 * fps).astype(int)
-            if frame_num in frame_indices:
-                idx = np.where(frame_indices == frame_num)[0]
-                for i in idx:
-                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
-                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
-                    gaze_points.append((gx, gy))
+        points = []
+        for x, y, t in gaze_data:
+            idx = (t / 1000 * fps).astype(int)
+            if i in idx:
+                pts = np.where(idx == i)[0]
+                for p in pts:
+                    px = int(np.clip(x[p], 0, 1) * (w - 1))
+                    py = int(np.clip(y[p], 0, 1) * (h - 1))
+                    points.append((px, py))
 
-        if len(gaze_points) >= 3:
-            points = np.array(gaze_points)
+        if len(points) >= 3:
+            arr = np.array(points)
             try:
-                convex_area = ConvexHull(points).volume
+                convex_area = ConvexHull(arr).volume
             except:
                 convex_area = 0
             try:
-                concave = alphashape.alphashape(points, alpha)
-                concave_area = concave.area if concave.geom_type == 'Polygon' else 0
+                shape = alphashape.alphashape(arr, alpha)
+                concave_area = shape.area if shape.geom_type == 'Polygon' else 0
             except:
                 concave_area = 0
         else:
-            convex_area, concave_area = 0, 0
+            convex_area = concave_area = 0
 
-        frame_numbers.append(frame_num)
-        convex_areas.append(convex_area)
-        concave_areas.append(concave_area)
-        video_frames.append(frame)
-        frame_num += 1
+        frames.append(i)
+        convex.append(convex_area)
+        concave.append(concave_area)
+        images.append(frame)
+        i += 1
 
     cap.release()
 
     df = pd.DataFrame({
-        'Frame': frame_numbers,
-        'Convex Area': convex_areas,
-        'Concave Area': concave_areas
+        'Frame': frames,
+        'Convex Area': convex,
+        'Concave Area': concave
     }).set_index('Frame')
-
-    df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
-    df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
-    df['F-C score'] = 1 - (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
+    df['Convex Area (Rolling)'] = df['Convex Area'].rolling(window, min_periods=1).mean()
+    df['Concave Area (Rolling)'] = df['Concave Area'].rolling(window, min_periods=1).mean()
+    df['F-C score'] = 1 - (df['Convex Area (Rolling)'] - df['Concave Area (Rolling)']) / df['Convex Area (Rolling)']
     df['F-C score'] = df['F-C score'].fillna(0)
 
-    return df, video_frames
+    return df, images
 
 # ----------------------------
-# SECTION: UI
+# UI
 # ----------------------------
-st.title("🎬 Gaze Hull Visualization")
+st.title("🎯 Gaze Analysis Visualizer")
 
-selected_video = st.selectbox("🎥 เลือกวิดีโอ", list(video_files.keys()))
-video_url = base_video_url + video_files[selected_video]
-st.video(video_url)
+selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
-if st.button("📊 Run Gaze Analysis"):
-    with st.spinner("🔍 Downloading and processing gaze data..."):
-        folder_path = f"{clips_folder}/{selected_video}"
-        gaze_data = load_gaze_data_from_github(user, repo, folder_path)
+if selected_video:
+    st.video(base_video_url + video_files[selected_video])
 
-        # Download video temporarily
-        video_temp_path = f"{selected_video}_temp.mp4"
-        if not os.path.exists(video_temp_path):
-            video_response = requests.get(video_url)
-            with open(video_temp_path, "wb") as f:
-                f.write(video_response.content)
+    folder = f"{clips_folder}/{selected_video}"
+    with st.spinner("Running analysis..."):
+        gaze = load_gaze_data(user, repo, folder)
 
-        df, video_frames = process_video_analysis(gaze_data, video_temp_path)
-        if df is not None:
-            st.session_state.df = df
-            st.session_state.frames = video_frames
-            st.session_state.frame_index = int(df.index.min())
-            st.success("✅ Gaze analysis complete!")
+        video_filename = f"{selected_video}.mp4"
+        if not os.path.exists(video_filename):
+            download_video(base_video_url + video_files[selected_video], video_filename)
+
+        df, frames = analyze_gaze(gaze, video_filename)
+        st.session_state.df = df
+        st.session_state.frames = frames
+        st.session_state.frame = int(df.index.min())
 
 # ----------------------------
-# SECTION: DISPLAY RESULTS
+# Results
 # ----------------------------
-if "df" in st.session_state and "frames" in st.session_state:
+if "df" in st.session_state:
     df = st.session_state.df
-    video_frames = st.session_state.frames
-    frame_idx = st.slider("🎞️ Select Frame", int(df.index.min()), int(df.index.max()), st.session_state.frame_index)
-    st.session_state.frame_index = frame_idx
+    frames = st.session_state.frames
+    frame = st.slider("🎞️ Select Frame", int(df.index.min()), int(df.index.max()), st.session_state.frame)
 
     col1, col2 = st.columns([2, 1])
-
-    # Chart
     with col1:
-        df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
-            'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
-        ], var_name='Metric', value_name='Area')
-        chart = alt.Chart(df_melt).mark_line().encode(
-            x='Frame',
-            y='Area',
-            color=alt.Color('Metric:N', scale=alt.Scale(range=['green', 'deepskyblue']))
+        data = df.reset_index().melt(id_vars="Frame", value_vars=[
+            "Convex Area (Rolling)", "Concave Area (Rolling)"
+        ], var_name="Metric", value_name="Area")
+        chart = alt.Chart(data).mark_line().encode(
+            x="Frame:Q", y="Area:Q", color="Metric:N"
         ).properties(width=600, height=300)
-        rule = alt.Chart(pd.DataFrame({'Frame': [frame_idx]})).mark_rule(color='red').encode(x='Frame')
+        rule = alt.Chart(pd.DataFrame({'Frame': [frame]})).mark_rule(color='red').encode(x='Frame')
         st.altair_chart(chart + rule, use_container_width=True)
 
-    # Frame & Metric
     with col2:
-        rgb_frame = cv2.cvtColor(video_frames[frame_idx], cv2.COLOR_BGR2RGB)
-        st.image(rgb_frame, caption=f"Frame {frame_idx}", use_container_width=True)
-        st.metric("Focus-Concentration Score", f"{df.loc[frame_idx, 'F-C score']:.3f}")
+        rgb = cv2.cvtColor(frames[frame], cv2.COLOR_BGR2RGB)
+        st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
+        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}")
