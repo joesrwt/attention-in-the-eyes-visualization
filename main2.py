@@ -91,8 +91,8 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df.set_index('Frame', inplace=True)
     df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
-    df['Score'] = (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
-    df['Score'] = df['Score'].fillna(0)
+    df['F-C score'] = 1- (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
+    df['F-C score'] = df['F-C score'].fillna(0)
 
     return df, video_frames
 
@@ -209,4 +209,4 @@ if st.session_state.data_processed:
     with col_right:
         frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
         st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
-        st.metric("Score at Selected Frame", f"{df.loc[current_frame, 'Score']:.3f}")
+        st.metric("Focus-Concentration Score", f"{df.loc[current_frame, 'F-C score']:.3f}")
