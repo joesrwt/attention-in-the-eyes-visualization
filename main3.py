@@ -106,16 +106,16 @@ if 'current_frame' not in st.session_state:
 
 # File upload form
 with st.form(key='file_upload_form'):
-    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mov` video", accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mp4` video", accept_multiple_files=True)
     submit_button = st.form_submit_button("Submit Files")
 
 if submit_button:
     if uploaded_files:
         mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
-        mov_files = [f for f in uploaded_files if f.name.endswith('.mov')]
+        mp4_files = [f for f in uploaded_files if f.name.endswith('.mp4')]
 
-        if not mat_files or not mov_files:
-            st.warning("Please upload at least one `.mat` file and one `.mov` video.")
+        if not mat_files or not mp4_files:
+            st.warning("Please upload at least one `.mat` file and one `.mp4` video.")
         else:
             st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
 
@@ -129,7 +129,7 @@ if submit_button:
                     f.write(file.getbuffer())
                 mat_paths.append(path)
 
-            video_file = mov_files[0]
+            video_file = mp4_files[0]
             video_path = os.path.join(temp_dir, video_file.name)
             with open(video_path, "wb") as f:
                 f.write(video_file.getbuffer())
