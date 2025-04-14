@@ -190,7 +190,7 @@ if st.session_state.data_processed:
         'Metric:N',
         scale=alt.Scale(
             domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-            range=['rgb(0, 255, 0)', 'rgb(0, 200, 255)']
+            range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
         ),
         legend=alt.Legend(orient='bottom', title='Hull Type')
     )
