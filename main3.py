@@ -131,7 +131,7 @@ def analyze_gaze(gaze_data, video_path, alpha=0.007, window=20):
 # ----------------------------
 # UI
 # ----------------------------
-st.title("🎯 Gaze Analysis Visualizer")
+st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
 
 selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
