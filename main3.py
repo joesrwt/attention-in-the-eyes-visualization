@@ -1,101 +1,3 @@
-import os
-import math
-import cv2
-import numpy as np
-import pandas as pd
-import scipy.io
-import streamlit as st
-import altair as alt
-from scipy.spatial import ConvexHull
-import alphashape
-from shapely.geometry import MultiPoint
-
-# Helper function to load gaze data
-@st.cache_data
-def load_gaze_data(mat_files):
-    gaze_data_per_viewer = []
-    for mat_file in mat_files:
-        mat = scipy.io.loadmat(mat_file)
-        eyetrack = mat['eyetrackRecord']
-        gaze_x = eyetrack['x'][0, 0].flatten()
-        gaze_y = eyetrack['y'][0, 0].flatten()
-        timestamps = eyetrack['t'][0, 0].flatten()
-        valid = (gaze_x != -32768) & (gaze_y != -32768)
-        gaze_x = gaze_x[valid]
-        gaze_y = gaze_y[valid]
-        timestamps = timestamps[valid] - timestamps[0]
-        gaze_x_norm = gaze_x / np.max(gaze_x)
-        gaze_y_norm = gaze_y / np.max(gaze_y)
-        gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
-    return gaze_data_per_viewer
-
-@st.cache_resource
-def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        st.error("❌ Cannot open video.")
-        return None, None
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    frame_numbers = []
-    convex_areas = []
-    concave_areas = []
-    video_frames = []
-
-    frame_num = 0
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        gaze_points = []
-        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
-            frame_indices = (timestamps / 1000 * fps).astype(int)
-            if frame_num in frame_indices:
-                idx = np.where(frame_indices == frame_num)[0]
-                for i in idx:
-                    gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
-                    gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
-                    gaze_points.append((gx, gy))
-
-        if len(gaze_points) >= 3:
-            points = np.array(gaze_points)
-            try:
-                convex_area = ConvexHull(points).volume
-            except:
-                convex_area = 0
-
-            try:
-                concave = alphashape.alphashape(points, alpha)
-                concave_area = concave.area if concave.geom_type == 'Polygon' else 0
-            except:
-                concave_area = 0
-
-            frame_numbers.append(frame_num)
-            convex_areas.append(convex_area)
-            concave_areas.append(concave_area)
-            video_frames.append(frame)
-
-        frame_num += 1
-
-    cap.release()
-
-    df = pd.DataFrame({
-        'Frame': frame_numbers,
-        'Convex Area': convex_areas,
-        'Concave Area': concave_areas
-    })
-    df.set_index('Frame', inplace=True)
-    df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
-    df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
-    df['F-C score'] = 1 - (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
-    df['F-C score'] = df['F-C score'].fillna(0)
-
-    return df, video_frames
-
 # Streamlit UI
 st.title("🎯 Gaze & Hull Analysis Tool")
 
@@ -106,7 +8,8 @@ if 'current_frame' not in st.session_state:
 
 # File upload form
 with st.form(key='file_upload_form'):
-    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mp4` video", accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mp4` video", 
+                                    accept_multiple_files=True)
     submit_button = st.form_submit_button("Submit Files")
 
 if submit_button:
@@ -134,6 +37,9 @@ if submit_button:
             with open(video_path, "wb") as f:
                 f.write(video_file.getbuffer())
 
+            # Store video path in session state
+            st.session_state.video_path = video_path
+
             with st.spinner("Processing gaze data and computing hull areas..."):
                 gaze_data = load_gaze_data(mat_paths)
                 df, video_frames = process_video_analysis(gaze_data, video_path)
@@ -146,6 +52,13 @@ if submit_button:
                     st.session_state.data_processed = True
                     st.session_state.current_frame = int(df.index.min())
                     st.success("✅ Data processing completed successfully!")
+
+# Display video at the top if available
+if 'video_path' in st.session_state and st.session_state.video_path:
+    st.subheader("🎥 Original Video")
+    video_file = open(st.session_state.video_path, 'rb')
+    video_bytes = video_file.read()
+    st.video(video_bytes)
 
 # Display analysis
 if st.session_state.data_processed:
@@ -187,13 +100,13 @@ if st.session_state.data_processed:
         x='Frame',
         y='Area',
         color=alt.Color(
-        'Metric:N',
-        scale=alt.Scale(
-            domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-            range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
-        ),
-        legend=alt.Legend(orient='bottom', title='Hull Type')
-    )
+            'Metric:N',
+            scale=alt.Scale(
+                domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
+                range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
+            ),
+            legend=alt.Legend(orient='bottom', title='Hull Type')
+        )
     ).properties(
         width=500,
         height=300
