@@ -1,63 +1,61 @@
-import streamlit as st
 import os
+import math
 import cv2
 import numpy as np
-import scipy.io
 import pandas as pd
+import scipy.io
+import streamlit as st
+import altair as alt
 from scipy.spatial import ConvexHull
 import alphashape
-import matplotlib.pyplot as plt
-from shapely.geometry import Point, Polygon
+from shapely.geometry import MultiPoint
 
-st.set_page_config(layout="wide")
-st.title("Gaze & Hull Analysis Tool")
+# Helper function to load gaze data
+@st.cache_data
+def load_gaze_data(mat_files):
+    gaze_data_per_viewer = []
+    for mat_file in mat_files:
+        mat = scipy.io.loadmat(mat_file)
+        eyetrack = mat['eyetrackRecord']
+        gaze_x = eyetrack['x'][0, 0].flatten()
+        gaze_y = eyetrack['y'][0, 0].flatten()
+        timestamps = eyetrack['t'][0, 0].flatten()
+        valid = (gaze_x != -32768) & (gaze_y != -32768)
+        gaze_x = gaze_x[valid]
+        gaze_y = gaze_y[valid]
+        timestamps = timestamps[valid] - timestamps[0]
+        gaze_x_norm = gaze_x / np.max(gaze_x)
+        gaze_y_norm = gaze_y / np.max(gaze_y)
+        gaze_data_per_viewer.append((gaze_x_norm, gaze_y_norm, timestamps))
+    return gaze_data_per_viewer
 
-# Upload section
-video_file = st.file_uploader("Upload a .mov video file", type=["mov"])
-data_files = st.file_uploader("Upload one or more .mat data files", type=["mat"], accept_multiple_files=True)
-
-if video_file and data_files:
-    # Save uploaded video to disk
-    video_path = os.path.join("temp_video.mov")
-    with open(video_path, "wb") as f:
-        f.write(video_file.read())
-
-    # Load video
+@st.cache_resource
+def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window_size=20):
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        st.error("❌ Cannot open video.")
+        return None, None
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    frame_numbers = []
+    convex_areas = []
+    concave_areas = []
     video_frames = []
+
+    frame_num = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        video_frames.append(frame)
-    cap.release()
 
-    total_frames = len(video_frames)
-    h, w, _ = video_frames[0].shape
-    fps = 30  # Adjust if needed
-
-    # Process gaze data
-    gaze_data = []
-    for file in data_files:
-        mat = scipy.io.loadmat(file)
-        gaze_x = mat['gaze_x'][0]
-        gaze_y = mat['gaze_y'][0]
-        timestamps = mat['timestamps'][0]
-
-        # Normalize gaze
-        norm_x = np.clip(gaze_x, 0, 1)
-        norm_y = np.clip(gaze_y, 0, 1)
-
-        gaze_data.append((norm_x, norm_y, timestamps))
-
-    # Calculate hull areas and F-C score per frame
-    convex_areas, concave_areas, scores = [], [], []
-    for frame_idx in range(total_frames):
         gaze_points = []
-        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data:
+        for gaze_x_norm, gaze_y_norm, timestamps in gaze_data_per_viewer:
             frame_indices = (timestamps / 1000 * fps).astype(int)
-            if frame_idx in frame_indices:
-                idx = np.where(frame_indices == frame_idx)[0]
+            if frame_num in frame_indices:
+                idx = np.where(frame_indices == frame_num)[0]
                 for i in idx:
                     gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
                     gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
@@ -66,117 +64,149 @@ if video_file and data_files:
         if len(gaze_points) >= 3:
             points = np.array(gaze_points)
             try:
-                convex = ConvexHull(points)
-                convex_area = convex.area
+                convex_area = ConvexHull(points).volume
             except:
                 convex_area = 0
+
             try:
-                concave = alphashape.alphashape(points, 0.007)
-                concave_area = concave.area if concave else 0
+                concave = alphashape.alphashape(points, alpha)
+                concave_area = concave.area if concave.geom_type == 'Polygon' else 0
             except:
                 concave_area = 0
-        else:
-            convex_area = 0
-            concave_area = 0
 
-        score = concave_area - convex_area
-        convex_areas.append(convex_area)
-        concave_areas.append(concave_area)
-        scores.append(score)
+            frame_numbers.append(frame_num)
+            convex_areas.append(convex_area)
+            concave_areas.append(concave_area)
+            video_frames.append(frame)
+
+        frame_num += 1
+
+    cap.release()
 
     df = pd.DataFrame({
-        "Convex Area": convex_areas,
-        "Concave Area": concave_areas,
-        "F-C score": scores
+        'Frame': frame_numbers,
+        'Convex Area': convex_areas,
+        'Concave Area': concave_areas
     })
+    df.set_index('Frame', inplace=True)
+    df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
+    df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
+    df['F-C score'] = 1 - (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
+    df['F-C score'] = df['F-C score'].fillna(0)
 
-    st.session_state.video_frames = video_frames
-    st.session_state.gaze_data = gaze_data
-    st.session_state.df = df
-    st.session_state.data_processed = True
+    return df, video_frames
 
-if "data_processed" in st.session_state and st.session_state.data_processed:
+# Streamlit UI
+st.title("🎯 Gaze & Hull Analysis Tool")
+
+if 'data_processed' not in st.session_state:
+    st.session_state.data_processed = False
+if 'current_frame' not in st.session_state:
+    st.session_state.current_frame = 0
+
+# File upload form
+with st.form(key='file_upload_form'):
+    uploaded_files = st.file_uploader("Upload your `.mat` gaze data and a `.mp4` video", accept_multiple_files=True)
+    submit_button = st.form_submit_button("Submit Files")
+
+if submit_button:
+    if uploaded_files:
+        mat_files = [f for f in uploaded_files if f.name.endswith('.mat')]
+        mp4_files = [f for f in uploaded_files if f.name.endswith('.mp4')]
+
+        if not mat_files or not mp4_files:
+            st.warning("Please upload at least one `.mat` file and one `.mp4` video.")
+        else:
+            st.success(f"✅ Loaded {len(mat_files)} .mat files and 1 video.")
+
+            temp_dir = "temp_data"
+            os.makedirs(temp_dir, exist_ok=True)
+
+            mat_paths = []
+            for file in mat_files:
+                path = os.path.join(temp_dir, file.name)
+                with open(path, "wb") as f:
+                    f.write(file.getbuffer())
+                mat_paths.append(path)
+
+            video_file = mp4_files[0]
+            video_path = os.path.join(temp_dir, video_file.name)
+            with open(video_path, "wb") as f:
+                f.write(video_file.getbuffer())
+
+            with st.spinner("Processing gaze data and computing hull areas..."):
+                gaze_data = load_gaze_data(mat_paths)
+                df, video_frames = process_video_analysis(gaze_data, video_path)
+
+                if df is not None:
+                    st.session_state.df = df
+                    st.session_state.video_frames = video_frames
+                    st.session_state.csv_path = os.path.join(temp_dir, "analysis.csv")
+                    df.to_csv(st.session_state.csv_path)
+                    st.session_state.data_processed = True
+                    st.session_state.current_frame = int(df.index.min())
+                    st.success("✅ Data processing completed successfully!")
+
+# Display analysis
+if st.session_state.data_processed:
+    csv_path = st.session_state.get('csv_path')
+    if csv_path and os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+        df = pd.read_csv(csv_path, index_col='Frame')
+    else:
+        st.error("❌ Could not load the data. Please upload files and run the analysis again.")
+        st.stop()
+
     video_frames = st.session_state.video_frames
-    gaze_data = st.session_state.gaze_data
-    df = st.session_state.df
-    total_frames = len(video_frames)
-    fps = 30
+    current_frame = st.session_state.current_frame
+    min_frame, max_frame = int(df.index.min()), int(df.index.max())
+    frame_increment = 10
+
+    st.subheader("📊 Convex vs Concave Hull Area Over Time")
 
     # Frame slider
-    current_frame = st.slider("Select Frame", 0, total_frames - 1, 0)
+    new_frame = st.slider("Select Frame", min_frame, max_frame, current_frame)
+    st.session_state.current_frame = new_frame
 
-    # Draw overlays like run_video_with_gaze_and_hulls
-    frame = video_frames[current_frame].copy()
-    h, w, _ = frame.shape
-    font = cv2.FONT_HERSHEY_SIMPLEX
+    # Navigation buttons
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col1:
+        if st.button("Previous <10"):
+            st.session_state.current_frame = max(min_frame, st.session_state.current_frame - frame_increment)
+    with col3:
+        if st.button("Next >10"):
+            st.session_state.current_frame = min(max_frame, st.session_state.current_frame + frame_increment)
 
-    gaze_points = []
-    for gaze_x_norm, gaze_y_norm, timestamps in gaze_data:
-        frame_indices = (timestamps / 1000 * fps).astype(int)
-        if current_frame in frame_indices:
-            idx = np.where(frame_indices == current_frame)[0]
-            for i in idx:
-                gx = int(np.clip(gaze_x_norm[i], 0, 1) * (w - 1))
-                gy = int(np.clip(gaze_y_norm[i], 0, 1) * (h - 1))
-                gaze_points.append((gx, gy))
-                cv2.circle(frame, (gx, gy), 4, (0, 0, 255), -1)
+    current_frame = st.session_state.current_frame
 
-    if len(gaze_points) >= 3:
-        points = np.array(gaze_points)
-        centroid = np.mean(points, axis=0).astype(int)
-        cv2.circle(frame, tuple(centroid), 6, (255, 0, 255), -1)
+    # Prepare data for Altair chart
+    df_melt = df.reset_index().melt(id_vars='Frame', value_vars=[
+        'Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'
+    ], var_name='Metric', value_name='Area')
 
-        try:
-            hull = ConvexHull(points)
-            hull_pts = points[hull.vertices].reshape((-1, 1, 2))
-            cv2.polylines(frame, [hull_pts], isClosed=True, color=(0, 255, 0), thickness=2)
-        except:
-            pass
+    chart = alt.Chart(df_melt).mark_line().encode(
+        x='Frame',
+        y='Area',
+        color=alt.Color(
+        'Metric:N',
+        scale=alt.Scale(
+            domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
+            range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
+        ),
+        legend=alt.Legend(orient='bottom', title='Hull Type')
+    )
+    ).properties(
+        width=500,
+        height=300
+    )
 
-        try:
-            concave = alphashape.alphashape(points, 0.007)
-            if concave and concave.geom_type == 'Polygon':
-                exterior = np.array(concave.exterior.coords).astype(np.int32)
-                cv2.polylines(frame, [exterior.reshape((-1, 1, 2))], isClosed=True, color=(255, 215, 0), thickness=2)
-        except:
-            pass
+    rule = alt.Chart(pd.DataFrame({'Frame': [current_frame]})).mark_rule(color='red').encode(x='Frame')
 
-    score = df.loc[current_frame, 'F-C score']
+    col_chart, col_right = st.columns([2, 1])
 
-    # Legend (top right)
-    legend_x, legend_y = w - 120, 10
-    legend_w, legend_h = 160, 60
-    font_scale = 0.38
-    line_height = 14
+    with col_chart:
+        st.altair_chart(chart + rule, use_container_width=True)
 
-    cv2.rectangle(frame, (legend_x, legend_y), (legend_x + legend_w, legend_y + legend_h), (255, 255, 255), -1)
-    cv2.circle(frame, (legend_x + 10, legend_y + 15), 4, (0, 0, 255), -1)
-    cv2.putText(frame, "Gaze Point", (legend_x + 20, legend_y + 19), font, font_scale, (0, 0, 0), 1)
-    cv2.circle(frame, (legend_x + 10, legend_y + 15 + line_height), 5, (255, 0, 255), -1)
-    cv2.putText(frame, "Centroid", (legend_x + 20, legend_y + 19 + line_height), font, font_scale, (0, 0, 0), 1)
-    cv2.putText(frame, f"F-C score: {score:.2f}", (legend_x + 10, legend_y + 19 + 2 * line_height), font, font_scale, (0, 0, 0), 1)
-
-    # Bottom-left legend
-    bottom_legend_x, bottom_legend_y = 10, h - 50
-    cv2.rectangle(frame, (bottom_legend_x, bottom_legend_y), (bottom_legend_x + 160, bottom_legend_y + 40), (255, 255, 255), -1)
-    cv2.rectangle(frame, (bottom_legend_x, bottom_legend_y), (bottom_legend_x + 160, bottom_legend_y + 40), (255, 255, 255), 1)
-    cv2.putText(frame, "Convex Hull Area", (bottom_legend_x + 25, bottom_legend_y + 15), font, font_scale, (0, 0, 0), 1)
-    cv2.putText(frame, "Concave Hull Area", (bottom_legend_x + 25, bottom_legend_y + 30), font, font_scale, (0, 0, 0), 1)
-    cv2.line(frame, (bottom_legend_x + 10, bottom_legend_y + 12), (bottom_legend_x + 20, bottom_legend_y + 12), (0, 255, 0), 2)
-    cv2.line(frame, (bottom_legend_x + 10, bottom_legend_y + 27), (bottom_legend_x + 20, bottom_legend_y + 27), (255, 215, 0), 2)
-
-    # Show video frame
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
-    st.metric("Focus-Concentration Score", f"{score:.3f}")
-
-    # Plot area graph
-    fig, ax = plt.subplots()
-    ax.plot(df.index, df['Convex Area'], label='Convex Area', color='green')
-    ax.plot(df.index, df['Concave Area'], label='Concave Area', color='gold')
-    ax.axvline(x=current_frame, color='blue', linestyle='--')
-    ax.set_xlabel('Frame Index')
-    ax.set_ylabel('Area')
-    ax.set_title('Convex vs Concave Hull Area Over Time')
-    ax.legend()
-    st.pyplot(fig)
+    with col_right:
+        frame_rgb = cv2.cvtColor(video_frames[current_frame], cv2.COLOR_BGR2RGB)
+        st.image(frame_rgb, caption=f"Frame {current_frame}", use_container_width=True)
+        st.metric("Focus-Concentration Score", f"{df.loc[current_frame, 'F-C score']:.3f}")
