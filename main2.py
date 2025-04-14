@@ -186,8 +186,14 @@ if st.session_state.data_processed:
     chart = alt.Chart(df_melt).mark_line().encode(
         x='Frame',
         y='Area',
-        color=alt.Color('Metric:N', scale=alt.Scale(domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'], range=['green', 'blue']),
-                        legend=alt.Legend(orient='bottom', title='Hull Type'))
+        color=alt.Color(
+        'Metric:N',
+        scale=alt.Scale(
+            domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
+            range=['rgb(0, 255, 0)', 'rgb(255, 215, 0)']
+        ),
+        legend=alt.Legend(orient='bottom', title='Hull Type')
+    )
     ).properties(
         width=500,
         height=300
