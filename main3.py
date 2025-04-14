@@ -91,7 +91,7 @@ def process_video_analysis(gaze_data_per_viewer, video_path, alpha=0.007, window
     df.set_index('Frame', inplace=True)
     df['Convex Area (Rolling Avg)'] = df['Convex Area'].rolling(window=window_size, min_periods=1).mean()
     df['Concave Area (Rolling Avg)'] = df['Concave Area'].rolling(window=window_size, min_periods=1).mean()
-    df['F-C score'] = 1- (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)']) / df['Convex Area (Rolling Avg)']
+    df['F-C score'] = 1- (df['Convex Area (Rolling Avg)'] - df['Concave Area (Rolling Avg)'] / df['Convex Area (Rolling Avg)'])
     df['F-C score'] = df['F-C score'].fillna(0)
 
     return df, video_frames
