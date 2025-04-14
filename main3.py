@@ -134,11 +134,6 @@ if submit_button:
             with open(video_path, "wb") as f:
                 f.write(video_file.getbuffer())
 
-            # Show the uploaded video at the top
-            with open(video_path, 'rb') as f:
-                video_bytes = f.read()
-            st.video(video_bytes)
-
             with st.spinner("Processing gaze data and computing hull areas..."):
                 gaze_data = load_gaze_data(mat_paths)
                 df, video_frames = process_video_analysis(gaze_data, video_path)
@@ -192,13 +187,13 @@ if st.session_state.data_processed:
         x='Frame',
         y='Area',
         color=alt.Color(
-            'Metric:N',
-            scale=alt.Scale(
-                domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
-                range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
-            ),
-            legend=alt.Legend(orient='bottom', title='Hull Type')
-        )
+        'Metric:N',
+        scale=alt.Scale(
+            domain=['Convex Area (Rolling Avg)', 'Concave Area (Rolling Avg)'],
+            range=['rgb(0, 210, 0)', 'rgb(0, 200, 255)']
+        ),
+        legend=alt.Legend(orient='bottom', title='Hull Type')
+    )
     ).properties(
         width=500,
         height=300
