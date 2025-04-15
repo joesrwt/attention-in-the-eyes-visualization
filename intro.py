@@ -88,9 +88,8 @@ with col2:
     st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif")
     st.caption("Gaze jumps around, showing exploration or distraction.")
 
-st.markdown("""
-<div style="background-color: {COLOR_GROUP2}; <p style="margin-top: 1em;">
-You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
-</p>
+st.markdown(f"""
+<div style="background-color: {COLOR_GROUP2}; padding: 20px; border-radius: 10px; margin-top: 1em;">
+    <p>You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.</p>
 </div>
 """, unsafe_allow_html=True)
