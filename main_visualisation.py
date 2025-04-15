@@ -14,7 +14,9 @@ page = st.sidebar.radio("Go to", ["🏠 Concept Visualization", "📊 Interactiv
 
 # -------------------- PAGE 1: Conceptual Visualization --------------------
 if page == "🏠 Concept Visualization":
-    st.image("conclip/Image.jpeg", use_container_width=True)
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/conclip/Image.jpeg")
+
+    
 
     st.markdown("""
     <div style="background-color: #DCEEFF; padding: 25px; border-radius: 10px; margin-top: 30px;">
