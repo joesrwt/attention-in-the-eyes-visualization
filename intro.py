@@ -16,14 +16,30 @@ st.markdown("---")
 # SECTION 2: Hull Concepts
 st.markdown("## 📐 How Do We Measure Focus?")
 st.markdown("""
-We use geometric shapes to visualize how tightly the viewer’s gaze is grouped.
+We use geometric shapes to visualize how tightly the viewer’s gaze is grouped:
 
 - **Convex Hull**: Encloses all gaze points loosely.
 - **Concave Hull**: Follows the actual shape of gaze, revealing true focus.
 
 👉 The **difference in area** between the two tells us how spread out or concentrated the gaze is.
 """)
-st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/convex_concave_example.png", caption="Convex vs Concave Hulls")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.image(
+        "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_image.jpg",
+        caption="📊 Diagram: Convex vs Concave Hulls",
+        use_column_width=True
+    )
+
+with col2:
+    st.image(
+        "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif",
+        caption="🎥 Real Example: Gaze Boundaries Over Time",
+        use_column_width=True
+    )
+
 st.markdown("---")
 
 # SECTION 3: F-C Score
