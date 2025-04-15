@@ -29,15 +29,14 @@ col1, col2 = st.columns(2)
 with col1:
     st.image(
         "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_image.jpg",
-        caption="📊 Diagram: Convex vs Concave Hulls",
-        use_column_width=True
+        caption="📊 Diagram: Convex vs Concave Hulls"
     )
 
 with col2:
     st.image(
         "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif",
-        caption="🎥 Real Example: Gaze Boundaries Over Time",
-        use_column_width=True
+        caption="🎥 Real Example: Gaze Boundaries Over Time"
+    
     )
 
 st.markdown("---")
@@ -60,12 +59,12 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### High F-C Score")
-    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif", use_column_width=True)
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif")
     st.caption("Gaze remains tightly grouped in one region.")
 
 with col2:
     st.markdown("### Low F-C Score")
-    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif", use_column_width=True)
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif")
     st.caption("Gaze jumps around, showing exploration or distraction.")
 
 st.markdown("""
