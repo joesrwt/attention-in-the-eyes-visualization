@@ -70,4 +70,4 @@ if "df" in st.session_state:
     with col2:
         rgb = cv2.cvtColor(frames[frame], cv2.COLOR_BGR2RGB)
         st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
-        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}") which make the sidebar to go through each part. 
+        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}") 
