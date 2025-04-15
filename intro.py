@@ -61,7 +61,7 @@ st.markdown(f"""
 <div style="text-align: center;">
     <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/formula_image.jpeg" 
          alt="🧮 Area calculation using a rolling average across the last 20 frames"
-         style="height: 200px; border-radius: 10px;"/>
+         style="height: 100px; border-radius: 10px;"/>
     <p><em>🧮 Area calculation using a rolling average across the last 20 frames</em></p>
 </div>
 """, unsafe_allow_html=True)
