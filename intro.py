@@ -2,23 +2,23 @@ import streamlit as st
 
 st.set_page_config(layout="wide")
 
-st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
-
-# Apply background color for the first main section (Sections 1-2)
+# Apply background color for the entire markdown sections
 st.markdown(
     """
     <style>
-    .main-section-1-2 {
+    .markdown-text {
         background-color: #e0f7fa;  /* Light Cyan */
-        padding: 30px;
+        padding: 20px;
         border-radius: 10px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # SECTION 1: Hook
-st.markdown('<div class="main-section-1-2">', unsafe_allow_html=True)
+st.markdown('<div class="markdown-text">', unsafe_allow_html=True)
+st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
+
 st.markdown("## 📌 What Captures Attention?")
 st.markdown("""
 Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes in search of something new?
@@ -29,7 +29,7 @@ st.markdown("---")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # SECTION 2: Hull Concepts
-st.markdown('<div class="main-section-1-2">', unsafe_allow_html=True)
+st.markdown('<div class="markdown-text">', unsafe_allow_html=True)
 st.markdown("## 📐 How Do We Measure Focus?")
 st.markdown("""
 We use geometric shapes to visualize how tightly the viewer’s gaze is grouped:
@@ -56,21 +56,21 @@ with col2:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Apply background color for the second main section (Sections 3-4)
+# Apply a new background color for Section 3-4 (to change the theme slightly)
 st.markdown(
     """
     <style>
-    .main-section-3-4 {
+    .markdown-text-section3-4 {
         background-color: #fff3e0;  /* Light Peach */
-        padding: 30px;
+        padding: 20px;
         border-radius: 10px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # SECTION 3: F-C Score
-st.markdown('<div class="main-section-3-4">', unsafe_allow_html=True)
+st.markdown('<div class="markdown-text-section3-4">', unsafe_allow_html=True)
 st.markdown("## 📊 Focus-Concentration (F-C) Score")
 
 st.image(
@@ -91,7 +91,7 @@ st.markdown("---")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # SECTION 4: Visual Examples
-st.markdown('<div class="main-section-3-4">', unsafe_allow_html=True)
+st.markdown('<div class="markdown-text-section3-4">', unsafe_allow_html=True)
 st.markdown("## 🎥 Visual Examples of Focus")
 col1, col2 = st.columns(2)
 
