@@ -122,7 +122,7 @@ def get_gaze_and_analysis(user, repo, folder, video_url, video_filename):
         download_video(video_url, video_filename)
     return analyze_gaze(gaze, video_filename)
 
-elif page == "📊 Interactive Analysis":
+if page == "📊 Interactive Analysis":
     st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
 
     video_files = {
