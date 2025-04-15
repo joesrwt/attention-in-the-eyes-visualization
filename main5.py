@@ -1,8 +1,36 @@
+import os
+import cv2
+import altair as alt
+import streamlit as st
+from utils import load_gaze_data, download_video, analyze_gaze 
+import pandas as pd
+
+st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
+
+# ----------------------------
+# CONFIG
+# ----------------------------
+video_files = {
+    "APPAL_2a": "APPAL_2a_hull_area.mp4",
+    "FOODI_2a": "FOODI_2a_hull_area.mp4",
+    "MARCH_12a": "MARCH_12a_hull_area.mp4",
+    "NANN_3a": "NANN_3a_hull_area.mp4",
+    "SHREK_3a": "SHREK_3a_hull_area.mp4",
+    "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
+    "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
+    "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
+}
+
+base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
+user = "nutteerabn"
+repo = "InfoVisual"
+clips_folder = "clips_folder"
+
 # ----------------------------
 # Helper with Caching
 # ----------------------------
 
-@st.cache_resource(show_spinner=False)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def get_analysis(user, repo, folder, video_url, local_filename):
     if not os.path.exists(local_filename):
         download_video(video_url, local_filename)
