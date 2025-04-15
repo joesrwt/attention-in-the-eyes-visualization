@@ -1,73 +1,87 @@
-import os
-import cv2
-import altair as alt
 import streamlit as st
-from utils import load_gaze_data, download_video, analyze_gaze
 
-st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
+# Page config
+st.set_page_config(layout="wide", page_title="Focus Visualization")
 
-# ----------------------------
-# CONFIG
-# ----------------------------
-video_files = {
-    "APPAL_2a": "APPAL_2a_hull_area.mp4",
-    "FOODI_2a": "FOODI_2a_hull_area.mp4",
-    "MARCH_12a": "MARCH_12a_hull_area.mp4",
-    "NANN_3a": "NANN_3a_hull_area.mp4",
-    "SHREK_3a": "SHREK_3a_hull_area.mp4",
-    "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
-    "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
-    "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
-}
+# Sidebar Navigation with HTML anchor links
+st.sidebar.title("🧭 Jump to Section")
+st.sidebar.markdown("""
+- [📌 Introduction](#introduction)
+- [📐 Hull Concepts](#hull-concepts)
+- [📊 F-C Score](#f-c-score)
+- [🎥 Visual Examples](#visual-examples)
+- [🎯 Interactive Analysis](#interactive-analysis)
+""", unsafe_allow_html=True)
 
-base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
-user = "nutteerabn"
-repo = "InfoVisual"
-clips_folder = "clips_folder"
+# Section 1: Introduction
+st.markdown('<h2 id="introduction">📌 What Captures Attention?</h2>', unsafe_allow_html=True)
+st.markdown("""
+<div style="background-color: #ECF0F1; padding: 20px; border-radius: 10px;">
+    Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes?
+    This visualization explores how viewers engage with video by examining where and how they focus their attention.
+</div>
+""", unsafe_allow_html=True)
 
-# ----------------------------
-# UI
-# ----------------------------
-st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
+st.markdown("---")
 
-selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
+# Section 2: Hull Concepts
+st.markdown('<h2 id="hull-concepts">📐 How Do We Measure Focus?</h2>', unsafe_allow_html=True)
+st.markdown("""
+<div style="background-color: #ECF0F1; padding: 20px; border-radius: 10px;">
+    We use two geometric shapes:
+    <ul>
+        <li><strong>Convex Hull</strong>: Loosely wraps all gaze points.</li>
+        <li><strong>Concave Hull</strong>: Closely follows actual shape of gaze data.</li>
+    </ul>
+    👉 The difference in area indicates how focused or scattered the viewer is.
+</div>
+""", unsafe_allow_html=True)
 
-if selected_video:
-    st.video(base_video_url + video_files[selected_video])
+col1, col2 = st.columns(2)
+with col1:
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_image.jpg", caption="Convex vs Concave", width=320)
+with col2:
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif", caption="Real Example")
 
-    folder = f"{clips_folder}/{selected_video}"
-    with st.spinner("Running analysis..."):
-        gaze = load_gaze_data(user, repo, folder)
+st.markdown("---")
 
-        video_filename = f"{selected_video}.mp4"
-        if not os.path.exists(video_filename):
-            download_video(base_video_url + video_files[selected_video], video_filename)
+# Section 3: F-C Score
+st.markdown('<h2 id="f-c-score">📊 Focus-Concentration (F-C) Score</h2>', unsafe_allow_html=True)
+st.markdown("""
+<div style="background-color: #F8F3EF; padding: 20px; border-radius: 10px;">
+    F-C Score = Convex Area / Concave Area (rolling avg over last 20 frames)
+</div>
+""", unsafe_allow_html=True)
 
-        df, frames = analyze_gaze(gaze, video_filename)
-        st.session_state.df = df
-        st.session_state.frames = frames
-        st.session_state.frame = int(df.index.min())
+st.markdown("""
+<div style="text-align: center;">
+    <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/formula_image.jpeg" 
+         style="height: 100px; border-radius: 10px;"/>
+    <p><em>Rolling area calculation for smoother interpretation</em></p>
+</div>
+""", unsafe_allow_html=True)
 
-# ----------------------------
-# Results
-# ----------------------------
-if "df" in st.session_state:
-    df = st.session_state.df
-    frames = st.session_state.frames
-    frame = st.slider("🎞️ Select Frame", int(df.index.min()), int(df.index.max()), st.session_state.frame)
+st.markdown("---")
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        data = df.reset_index().melt(id_vars="Frame", value_vars=[
-            "Convex Area (Rolling)", "Concave Area (Rolling)"
-        ], var_name="Metric", value_name="Area")
-        chart = alt.Chart(data).mark_line().encode(
-            x="Frame:Q", y="Area:Q", color="Metric:N"
-        ).properties(width=600, height=300)
-        rule = alt.Chart(pd.DataFrame({'Frame': [frame]})).mark_rule(color='red').encode(x='Frame')
-        st.altair_chart(chart + rule, use_container_width=True)
+# Section 4: Visual Examples
+st.markdown('<h2 id="visual-examples">🎥 Visual Examples of Focus</h2>', unsafe_allow_html=True)
 
-    with col2:
-        rgb = cv2.cvtColor(frames[frame], cv2.COLOR_BGR2RGB)
-        st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
-        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}")
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("### High F-C Score")
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif")
+    st.caption("Gaze remains tightly grouped.")
+
+with col2:
+    st.markdown("### Low F-C Score")
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif")
+    st.caption("Gaze shifts frequently between regions.")
+
+st.markdown("---")
+
+# Section 5: Interactive Analysis
+st.markdown('<h2 id="interactive-analysis">🎯 Interactive Analysis</h2>', unsafe_allow_html=True)
+
+# 👉 You can now reuse your interactive analysis logic here (from your original code block)
+# e.g., video selection, loading gaze data, and visualization.
+# You could wrap it in a function called show_interactive_analysis() to keep it modular.
