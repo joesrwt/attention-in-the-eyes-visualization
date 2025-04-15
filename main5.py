@@ -2,7 +2,8 @@ import os
 import cv2
 import altair as alt
 import streamlit as st
-from utils import load_gaze_data, download_video, analyze_gaze
+from utils import load_gaze_data, download_video, analyze_gaze 
+import pandas as pd
 
 st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
 
