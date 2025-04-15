@@ -49,8 +49,7 @@ with col2:
         caption="🎥 Real Example: Gaze Boundaries Over Time"
     )
 st.markdown(f"""
-<div style="background-color: {COLOR_GROUP2}; padding: 20px; border-radius: 10px;">
-    <h3>📊 </h3>
+<div style="background-color: {COLOR_GROUP1}; padding: 20px; border-radius: 10px;">
 </div>
 """, unsafe_allow_html=True)
 
