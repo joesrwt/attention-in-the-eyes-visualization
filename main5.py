@@ -20,7 +20,15 @@ if page == "🏠 Concept Visualization":
     st.markdown("[Go to Conceptual Visualization](https://infovisual-cbf7u8kncgbgspg2n7e52d.streamlit.app/)")
 
 # -------------------- PAGE 2: Interactive Analysis --------------------
-elif page == "📊 Interactive Analysis":
+
+@st.cache_data
+def get_gaze_and_analysis(user, repo, folder, video_url, video_filename):
+    gaze = load_gaze_data(user, repo, folder)
+    if not os.path.exists(video_filename):
+        download_video(video_url, video_filename)
+    return analyze_gaze(gaze, video_filename)
+
+if page == "📊 Interactive Analysis":
     st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
 
     video_files = {
@@ -39,31 +47,17 @@ elif page == "📊 Interactive Analysis":
     repo = "InfoVisual"
     clips_folder = "clips_folder"
 
-    # ----------------------------
-    # Helper with Caching
-    # ----------------------------
-
-    @st.cache_resource(show_spinner=False)
-    def get_analysis(user, repo, folder, video_url, local_filename):
-        if not os.path.exists(local_filename):
-            download_video(video_url, local_filename)
-        gaze = load_gaze_data(user, repo, folder)
-        return analyze_gaze(gaze, local_filename)
-
     selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
     if selected_video:
-        st.session_state.selected_video = selected_video  # Store selected video in session state
-        video_url = base_video_url + video_files[selected_video]
-        
-        # Embed the video with custom HTML for resizing
-        st.markdown(f'<video width="700" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
-
+        st.video(base_video_url + video_files[selected_video])
         folder = f"{clips_folder}/{selected_video}"
         video_filename = f"{selected_video}.mp4"
 
         with st.spinner("Running analysis..."):
-            df, frames = get_analysis(user, repo, folder, video_url, video_filename)
+            df, frames = get_gaze_and_analysis(
+                user, repo, folder, base_video_url + video_files[selected_video], video_filename
+            )
             st.session_state.df = df
             st.session_state.frames = frames
             st.session_state.frame_min = int(df.index.min())
@@ -75,9 +69,6 @@ elif page == "📊 Interactive Analysis":
                 value_name="Area"
             )
 
-    # ----------------------------
-    # Results
-    # ----------------------------
     if "df" in st.session_state:
         frame = st.slider(
             "🎞️ Select Frame", 
