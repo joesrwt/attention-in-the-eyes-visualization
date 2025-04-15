@@ -39,6 +39,10 @@ elif page == "📊 Interactive Analysis":
     repo = "InfoVisual"
     clips_folder = "clips_folder"
 
+    # ----------------------------
+    # Helper with Caching
+    # ----------------------------
+
     @st.cache_resource(show_spinner=False)
     def get_analysis(user, repo, folder, video_url, local_filename):
         if not os.path.exists(local_filename):
@@ -49,7 +53,9 @@ elif page == "📊 Interactive Analysis":
     selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
     if selected_video:
-        st.video(base_video_url + video_files[selected_video], width=700)
+        # Embed the video with custom HTML for resizing
+        video_url = base_video_url + video_files[selected_video]
+        st.markdown(f'<video width="700" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
 
         folder = f"{clips_folder}/{selected_video}"
         video_filename = f"{selected_video}.mp4"
