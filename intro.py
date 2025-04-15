@@ -1,40 +1,57 @@
 import streamlit as st
 
+st.set_page_config(layout="wide")
+
 st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
 
-with st.expander("📌 Goal of This Visualization", expanded=True):
-    st.markdown("""
-    Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes in search of something new?
+# SECTION 1: Hook
+st.markdown("## 📌 What Captures Attention?")
+st.markdown("""
+Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes in search of something new?
 
-    The goal of this visualization is to understand how viewers engage with a video by examining **where and how they focus their attention**. By comparing the areas where viewers look (represented by **convex and concave hulls**), the visualization highlights whether their attention stays focused on a specific part of the video or shifts around.
+This visualization explores how viewers engage with a video by examining **where and how they focus their attention**.
+""")
+st.markdown("---")
 
-    Ultimately, this helps us uncover **patterns of focus and exploration**, providing insights into how viewers interact with different elements of the video.
-    """)
+# SECTION 2: Hull Concepts
+st.markdown("## 📐 How Do We Measure Focus?")
+st.markdown("""
+We use geometric shapes to visualize how tightly the viewer’s gaze is grouped.
 
-with st.expander("📐 Explain Convex and Concave Concept"):
-    st.markdown("""
-    To analyze visual attention, we enclose gaze points with geometric boundaries:
+- **Convex Hull**: Encloses all gaze points loosely.
+- **Concave Hull**: Follows the actual shape of gaze, revealing true focus.
 
-    - **Convex Hull** wraps around all gaze points to show the overall extent of where viewers looked.
-    - **Concave Hull** creates a tighter boundary that closely follows the actual shape of the gaze pattern, adapting to gaps and contours in the data.
+👉 The **difference in area** between the two tells us how spread out or concentrated the gaze is.
+""")
+st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/convex_concave_example.png", caption="Convex vs Concave Hulls")
+st.markdown("---")
 
-    👉 **The difference in area between them reveals how dispersed or concentrated the viewers’ gaze is.**
-    """)
+# SECTION 3: F-C Score
+st.markdown("## 📊 Focus-Concentration (F-C) Score")
+st.markdown("""
+The **F-C Score** helps quantify gaze behavior:
 
-with st.expander("📊 Focus-Concentration (F-C) Score"):
-    st.markdown("""
-    The **Focus Concentration Score (FCS)** quantifies how focused or scattered a viewer’s attention is during the video:
+- **Close to 1** → tight gaze cluster → **high concentration**.
+- **Much lower than 1** → scattered gaze → **low concentration**.
 
-    - A score **close to 1** → gaze is tightly grouped → **high concentration**.
-    - A score **much lower than 1** → gaze is more spread out → **lower concentration / more exploration**.
+This metric reveals whether attention is **locked in** or **wandering**.
+""")
+st.markdown("---")
 
-    It helps to measure whether attention is **locked onto a specific spot** or **wandering across the frame**.
-    """)
+# SECTION 4: Visual Examples
+st.markdown("## 🎥 Visual Examples of Focus")
+col1, col2 = st.columns(2)
 
-with st.expander("🎥 Example: High vs Low F-C Score"):
-    st.markdown("""
-    - **High F-C Score**: The viewer’s gaze remains focused in one tight area, suggesting strong interest or attention.
-    - **Low F-C Score**: The gaze is scattered, moving across many regions of the screen, indicating exploration or distraction.
+with col1:
+    st.markdown("### High F-C Score")
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif", use_column_width=True)
+    st.caption("Gaze remains tightly grouped in one region.")
 
-    You can observe this difference visually in the graph and video overlays as you explore different frames.
-    """)
+with col2:
+    st.markdown("### Low F-C Score")
+    st.image("https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif", use_column_width=True)
+    st.caption("Gaze jumps around, showing exploration or distraction.")
+
+st.markdown("""
+You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
+""")
