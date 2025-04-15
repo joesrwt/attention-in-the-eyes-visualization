@@ -44,8 +44,7 @@ st.markdown("## 📊 Focus-Concentration (F-C) Score")
 
 st.image(
     "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/formula_image.jpeg",
-    caption="🧮 Area calculation using a rolling average across the last 20 frames",
-    use_column_width=True
+    caption="🧮 Area calculation using a rolling average across the last 20 frames",width=500
 )
 
 
