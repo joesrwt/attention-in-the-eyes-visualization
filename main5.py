@@ -1,30 +1,13 @@
-import os
-import cv2
-import altair as alt
-import streamlit as st
-from utils import load_gaze_data, download_video, analyze_gaze 
-import pandas as pd
-
-st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
-
 # ----------------------------
-# CONFIG
+# Helper with Caching
 # ----------------------------
-video_files = {
-    "APPAL_2a": "APPAL_2a_hull_area.mp4",
-    "FOODI_2a": "FOODI_2a_hull_area.mp4",
-    "MARCH_12a": "MARCH_12a_hull_area.mp4",
-    "NANN_3a": "NANN_3a_hull_area.mp4",
-    "SHREK_3a": "SHREK_3a_hull_area.mp4",
-    "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
-    "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
-    "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
-}
 
-base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
-user = "nutteerabn"
-repo = "InfoVisual"
-clips_folder = "clips_folder"
+@st.cache_resource(show_spinner=False)
+def get_analysis(user, repo, folder, video_url, local_filename):
+    if not os.path.exists(local_filename):
+        download_video(video_url, local_filename)
+    gaze = load_gaze_data(user, repo, folder)
+    return analyze_gaze(gaze, local_filename)
 
 # ----------------------------
 # UI
@@ -37,17 +20,14 @@ if selected_video:
     st.video(base_video_url + video_files[selected_video])
 
     folder = f"{clips_folder}/{selected_video}"
+    video_filename = f"{selected_video}.mp4"
+    video_url = base_video_url + video_files[selected_video]
+
     with st.spinner("Running analysis..."):
-        gaze = load_gaze_data(user, repo, folder)
-
-        video_filename = f"{selected_video}.mp4"
-        if not os.path.exists(video_filename):
-            download_video(base_video_url + video_files[selected_video], video_filename)
-
-        df, frames = analyze_gaze(gaze, video_filename)
+        df, frames = get_analysis(user, repo, folder, video_url, video_filename)
         st.session_state.df = df
         st.session_state.frames = frames
-        st.session_state.frame = int(df.index.min())
+        st.session_state.frame = st.session_state.get("frame", int(df.index.min()))
 
 # ----------------------------
 # Results
@@ -55,7 +35,14 @@ if selected_video:
 if "df" in st.session_state:
     df = st.session_state.df
     frames = st.session_state.frames
-    frame = st.slider("🎞️ Select Frame", int(df.index.min()), int(df.index.max()), st.session_state.frame)
+
+    frame = st.slider(
+        "🎞️ Select Frame", 
+        int(df.index.min()), 
+        int(df.index.max()), 
+        st.session_state.frame,
+        key="frame"  # persist selection in session state
+    )
 
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -71,4 +58,4 @@ if "df" in st.session_state:
     with col2:
         rgb = cv2.cvtColor(frames[frame], cv2.COLOR_BGR2RGB)
         st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
-        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}") 
+        st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}")
