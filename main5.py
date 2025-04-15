@@ -55,7 +55,7 @@ elif page == "📊 Interactive Analysis":
     if selected_video:
         # Embed the video with custom HTML for resizing
         video_url = base_video_url + video_files[selected_video]
-        st.markdown(f'<video width="1000" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
+        st.markdown(f'<video width="1300" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
 
         folder = f"{clips_folder}/{selected_video}"
         video_filename = f"{selected_video}.mp4"
