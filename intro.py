@@ -48,6 +48,11 @@ with col2:
         "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif",
         caption="🎥 Real Example: Gaze Boundaries Over Time"
     )
+st.markdown(f"""
+<div style="background-color: {COLOR_GROUP2}; padding: 20px; border-radius: 10px;">
+    <h3>📊 </h3>
+</div>
+""", unsafe_allow_html=True)
 
 # SECTION 3: F-C Score
 st.markdown(f"""
