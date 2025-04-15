@@ -30,7 +30,7 @@ clips_folder = "clips_folder"
 # Helper with Caching
 # ----------------------------
 
-@st.cache(allow_output_mutation=True, show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def get_analysis(user, repo, folder, video_url, local_filename):
     if not os.path.exists(local_filename):
         download_video(video_url, local_filename)
