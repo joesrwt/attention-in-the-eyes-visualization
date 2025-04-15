@@ -89,7 +89,8 @@ with col2:
     st.caption("Gaze jumps around, showing exploration or distraction.")
 
 st.markdown("""
-<p style="margin-top: 1em;">
+<div style="background-color: {COLOR_GROUP2}; <p style="margin-top: 1em;">
 You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
 </p>
+</div>
 """, unsafe_allow_html=True)
