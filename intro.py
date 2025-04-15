@@ -4,7 +4,7 @@ st.set_page_config(layout="wide")
 st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
 
 # กำหนดโทนสีแบบจับคู่
-COLOR_GROUP1 = "#E0F3F3"   
+COLOR_GROUP1 = "#BBBEC8"   
 COLOR_GROUP2 = "#F3EAE0"   
 
 # SECTION 1: Hook
