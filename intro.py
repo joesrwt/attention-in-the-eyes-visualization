@@ -4,7 +4,7 @@ st.set_page_config(layout="wide")
 
 st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
 
-# SECTION 1: Hook
+# Apply background color for Sections 1-2 (Light Cyan)
 st.markdown(
     """
     <style>
@@ -12,10 +12,12 @@ st.markdown(
         background-color: #e0f7fa;  /* Light Cyan */
         padding: 20px;
         border-radius: 10px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# SECTION 1: Hook
 st.markdown('<div class="section-1-2">', unsafe_allow_html=True)
 st.markdown("## 📌 What Captures Attention?")
 st.markdown("""
@@ -54,7 +56,7 @@ with col2:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# SECTION 3: F-C Score
+# Apply background color for Sections 3-4 (Light Peach)
 st.markdown(
     """
     <style>
@@ -62,10 +64,12 @@ st.markdown(
         background-color: #fff3e0;  /* Light Peach */
         padding: 20px;
         border-radius: 10px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# SECTION 3: F-C Score
 st.markdown('<div class="section-3-4">', unsafe_allow_html=True)
 st.markdown("## 📊 Focus-Concentration (F-C) Score")
 
