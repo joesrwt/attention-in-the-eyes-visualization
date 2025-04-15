@@ -5,6 +5,18 @@ st.set_page_config(layout="wide")
 st.title("🎯 Understanding Viewer Focus Through Gaze Visualization")
 
 # SECTION 1: Hook
+st.markdown(
+    """
+    <style>
+    .section-1-2 {
+        background-color: #e0f7fa;  /* Light Cyan */
+        padding: 20px;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.markdown('<div class="section-1-2">', unsafe_allow_html=True)
 st.markdown("## 📌 What Captures Attention?")
 st.markdown("""
 Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes in search of something new?
@@ -12,8 +24,10 @@ Is the viewer’s attention firmly focused on key moments, or does it float, dri
 This visualization explores how viewers engage with a video by examining **where and how they focus their attention**.
 """)
 st.markdown("---")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # SECTION 2: Hull Concepts
+st.markdown('<div class="section-1-2">', unsafe_allow_html=True)
 st.markdown("## 📐 How Do We Measure Focus?")
 st.markdown("""
 We use geometric shapes to visualize how tightly the viewer’s gaze is grouped:
@@ -36,17 +50,29 @@ with col2:
     st.image(
         "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif",
         caption="🎥 Real Example: Gaze Boundaries Over Time"
-    
     )
 
+st.markdown('</div>', unsafe_allow_html=True)
+
 # SECTION 3: F-C Score
+st.markdown(
+    """
+    <style>
+    .section-3-4 {
+        background-color: #fff3e0;  /* Light Peach */
+        padding: 20px;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.markdown('<div class="section-3-4">', unsafe_allow_html=True)
 st.markdown("## 📊 Focus-Concentration (F-C) Score")
 
 st.image(
     "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/formula_image.jpeg",
-    caption="🧮 Area calculation using a rolling average across the last 20 frames",width=900
+    caption="🧮 Area calculation using a rolling average across the last 20 frames", width=900
 )
-
 
 st.markdown("""
 The **F-C Score** helps quantify gaze behavior:
@@ -57,11 +83,11 @@ The **F-C Score** helps quantify gaze behavior:
 This metric reveals whether attention is **locked in** or **wandering**.
 """)
 
-
 st.markdown("---")
-
+st.markdown('</div>', unsafe_allow_html=True)
 
 # SECTION 4: Visual Examples
+st.markdown('<div class="section-3-4">', unsafe_allow_html=True)
 st.markdown("## 🎥 Visual Examples of Focus")
 col1, col2 = st.columns(2)
 
@@ -78,3 +104,4 @@ with col2:
 st.markdown("""
 You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
 """)
+st.markdown('</div>', unsafe_allow_html=True)
