@@ -2,7 +2,7 @@ import os
 import cv2
 import altair as alt
 import streamlit as st
-from utils import load_gaze_data, download_video, analyze_gaze 
+from utils import load_gaze_data, download_video, analyze_gaze
 import pandas as pd
 
 st.set_page_config(page_title="Gaze Hull Visualizer", layout="wide")
@@ -53,47 +53,48 @@ elif page == "📊 Interactive Analysis":
     selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
     if selected_video:
-        # Embed the video with custom HTML for resizing
+        st.session_state.selected_video = selected_video  # Store selected video in session state
         video_url = base_video_url + video_files[selected_video]
-        st.markdown(f'<video width="1300" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
+        
+        # Embed the video with custom HTML for resizing
+        st.markdown(f'<video width="700" controls><source src="{video_url}" type="video/mp4"></video>', unsafe_allow_html=True)
 
         folder = f"{clips_folder}/{selected_video}"
         video_filename = f"{selected_video}.mp4"
-        video_url = base_video_url + video_files[selected_video]
 
         with st.spinner("Running analysis..."):
             df, frames = get_analysis(user, repo, folder, video_url, video_filename)
             st.session_state.df = df
             st.session_state.frames = frames
-            st.session_state.frame = st.session_state.get("frame", int(df.index.min()))
+            st.session_state.frame_min = int(df.index.min())
+            st.session_state.frame_max = int(df.index.max())
+            st.session_state.chart_data = df.reset_index().melt(
+                id_vars="Frame", 
+                value_vars=["Convex Area (Rolling)", "Concave Area (Rolling)"], 
+                var_name="Metric", 
+                value_name="Area"
+            )
 
     # ----------------------------
     # Results
     # ----------------------------
     if "df" in st.session_state:
-        df = st.session_state.df
-        frames = st.session_state.frames
-
         frame = st.slider(
             "🎞️ Select Frame", 
-            int(df.index.min()), 
-            int(df.index.max()), 
-            st.session_state.frame,
-            key="frame"  # persist selection in session state
+            st.session_state.frame_min, 
+            st.session_state.frame_max, 
+            st.session_state.frame_min
         )
 
         col1, col2 = st.columns([2, 1])
         with col1:
-            data = df.reset_index().melt(id_vars="Frame", value_vars=[
-                "Convex Area (Rolling)", "Concave Area (Rolling)"
-            ], var_name="Metric", value_name="Area")
-            chart = alt.Chart(data).mark_line().encode(
+            base_chart = alt.Chart(st.session_state.chart_data).mark_line().encode(
                 x="Frame:Q", y="Area:Q", color="Metric:N"
             ).properties(width=600, height=300)
-            rule = alt.Chart(pd.DataFrame({'Frame': [frame]})).mark_rule(color='red').encode(x='Frame')
-            st.altair_chart(chart + rule, use_container_width=True)
+            rule = alt.Chart(pd.DataFrame({'Frame': [frame]})).mark_rule(color='red').encode(x='Frame:Q')
+            st.altair_chart(base_chart + rule, use_container_width=True)
 
         with col2:
-            rgb = cv2.cvtColor(frames[frame], cv2.COLOR_BGR2RGB)
+            rgb = cv2.cvtColor(st.session_state.frames[frame], cv2.COLOR_BGR2RGB)
             st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
-            st.metric("F-C Score", f"{df.loc[frame, 'F-C score']:.3f}")
+            st.metric("F-C Score", f"{st.session_state.df.loc[frame, 'F-C score']:.3f}")
