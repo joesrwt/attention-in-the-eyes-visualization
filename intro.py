@@ -39,10 +39,16 @@ with col2:
     
     )
 
-st.markdown("---")
-
 # SECTION 3: F-C Score
 st.markdown("## 📊 Focus-Concentration (F-C) Score")
+
+st.image(
+    "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/formula_image.jpeg",
+    caption="🧮 Area calculation using a rolling average across the last 20 frames",
+    use_column_width=True
+)
+
+
 st.markdown("""
 The **F-C Score** helps quantify gaze behavior:
 
@@ -51,7 +57,10 @@ The **F-C Score** helps quantify gaze behavior:
 
 This metric reveals whether attention is **locked in** or **wandering**.
 """)
+
+
 st.markdown("---")
+
 
 # SECTION 4: Visual Examples
 st.markdown("## 🎥 Visual Examples of Focus")
