@@ -49,7 +49,7 @@ elif page == "📊 Interactive Analysis":
     selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
 
     if selected_video:
-        st.video(base_video_url + video_files[selected_video])
+        st.video(base_video_url + video_files[selected_video], width=800)
 
         folder = f"{clips_folder}/{selected_video}"
         video_filename = f"{selected_video}.mp4"
