@@ -1,6 +1,6 @@
 # -------------------- PAGE 2: Interactive Analysis --------------------
 
-@st.cache_data
+@st.cache_resource
 def get_gaze_and_analysis(user, repo, folder, video_url, video_filename):
     gaze = load_gaze_data(user, repo, folder)
     if not os.path.exists(video_filename):
