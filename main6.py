@@ -5,29 +5,53 @@ import streamlit as st
 import pandas as pd
 from utils import load_gaze_data, download_video, analyze_gaze
 
-# -------------------- PAGE 2: Interactive Analysis --------------------
+st.set_page_config(page_title="Interactive Gaze Analysis", layout="wide")
 
-# Cache only the resource-heavy loading + processing function
+st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
+
+# -------------------- Video Options --------------------
+video_files = {
+    "APPAL_2a": "APPAL_2a_hull_area.mp4",
+    "FOODI_2a": "FOODI_2a_hull_area.mp4",
+    "MARCH_12a": "MARCH_12a_hull_area.mp4",
+    "NANN_3a": "NANN_3a_hull_area.mp4",
+    "SHREK_3a": "SHREK_3a_hull_area.mp4",
+    "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
+    "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
+    "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
+}
+
+base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
+user = "nutteerabn"
+repo = "InfoVisual"
+clips_folder = "clips_folder"
+
+selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
+
+# -------------------- Cached Analysis --------------------
 @st.cache_resource
-def get_gaze_and_analysis(user, repo, folder, video_url, video_filename):
+def process_gaze_data(user, repo, folder, video_url, video_filename):
     gaze = load_gaze_data(user, repo, folder)
     if not os.path.exists(video_filename):
         download_video(video_url, video_filename)
     return analyze_gaze(gaze, video_filename)
 
-def display_video_and_run_analysis(video_key, video_url, user, repo, folder_name):
+# -------------------- Display Video + Analysis --------------------
+if selected_video:
+    video_url = base_video_url + video_files[selected_video]
     st.video(video_url)
-    video_filename = f"{video_key}.mp4"
-    folder = f"{folder_name}/{video_key}"
 
-    with st.spinner("Running analysis..."):
-        df, frames = get_gaze_and_analysis(user, repo, folder, video_url, video_filename)
+    folder = f"{clips_folder}/{selected_video}"
+    video_filename = f"{selected_video}.mp4"
 
-        # Save in session state
+    with st.spinner("Running gaze analysis..."):
+        df, frames = process_gaze_data(user, repo, folder, video_url, video_filename)
+
         st.session_state.df = df
         st.session_state.frames = frames
         st.session_state.frame_min = int(df.index.min())
         st.session_state.frame_max = int(df.index.max())
+
         st.session_state.chart_data = df.reset_index().melt(
             id_vars="Frame",
             value_vars=["Convex Area (Rolling)", "Concave Area (Rolling)"],
@@ -35,7 +59,8 @@ def display_video_and_run_analysis(video_key, video_url, user, repo, folder_name
             value_name="Area"
         )
 
-def render_analysis_tools():
+# -------------------- Interactive Tools --------------------
+if "df" in st.session_state:
     frame = st.slider(
         "🎞️ Select Frame",
         st.session_state.frame_min,
@@ -59,33 +84,3 @@ def render_analysis_tools():
         rgb = cv2.cvtColor(st.session_state.frames[frame], cv2.COLOR_BGR2RGB)
         st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
         st.metric("F-C Score", f"{st.session_state.df.loc[frame, 'F-C score']:.3f}")
-
-# -------------------- MAIN PAGE CONTENT --------------------
-
-def interactive_analysis_page():
-    st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
-
-    video_files = {
-        "APPAL_2a": "APPAL_2a_hull_area.mp4",
-        "FOODI_2a": "FOODI_2a_hull_area.mp4",
-        "MARCH_12a": "MARCH_12a_hull_area.mp4",
-        "NANN_3a": "NANN_3a_hull_area.mp4",
-        "SHREK_3a": "SHREK_3a_hull_area.mp4",
-        "SIMPS_19a": "SIMPS_19a_hull_area.mp4",
-        "SIMPS_9a": "SIMPS_9a_hull_area.mp4",
-        "SUND_36a_POR": "SUND_36a_POR_hull_area.mp4",
-    }
-
-    base_video_url = "https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/processed%20hull%20area%20overlay/"
-    user = "nutteerabn"
-    repo = "InfoVisual"
-    clips_folder = "clips_folder"
-
-    selected_video = st.selectbox("🎬 Select a video", list(video_files.keys()))
-
-    if selected_video:
-        video_url = base_video_url + video_files[selected_video]
-        display_video_and_run_analysis(selected_video, video_url, user, repo, clips_folder)
-
-    if "df" in st.session_state:
-        render_analysis_tools()
