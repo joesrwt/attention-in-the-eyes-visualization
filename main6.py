@@ -1,9 +1,14 @@
-if hasattr(st, "cache_data"):
-    cache_func = st.cache_data
-else:
-    cache_func = st.cache
+import os
+import cv2
+import altair as alt
+import streamlit as st
+import pandas as pd
+from utils import load_gaze_data, download_video, analyze_gaze
 
-@cache_func
+# -------------------- PAGE 2: Interactive Analysis --------------------
+
+# Cache only the resource-heavy loading + processing function
+@st.cache_resource
 def get_gaze_and_analysis(user, repo, folder, video_url, video_filename):
     gaze = load_gaze_data(user, repo, folder)
     if not os.path.exists(video_filename):
@@ -18,23 +23,23 @@ def display_video_and_run_analysis(video_key, video_url, user, repo, folder_name
     with st.spinner("Running analysis..."):
         df, frames = get_gaze_and_analysis(user, repo, folder, video_url, video_filename)
 
-        # Store in session state for interactive use
+        # Save in session state
         st.session_state.df = df
         st.session_state.frames = frames
         st.session_state.frame_min = int(df.index.min())
         st.session_state.frame_max = int(df.index.max())
         st.session_state.chart_data = df.reset_index().melt(
-            id_vars="Frame", 
-            value_vars=["Convex Area (Rolling)", "Concave Area (Rolling)"], 
-            var_name="Metric", 
+            id_vars="Frame",
+            value_vars=["Convex Area (Rolling)", "Concave Area (Rolling)"],
+            var_name="Metric",
             value_name="Area"
         )
 
 def render_analysis_tools():
     frame = st.slider(
-        "🎞️ Select Frame", 
-        st.session_state.frame_min, 
-        st.session_state.frame_max, 
+        "🎞️ Select Frame",
+        st.session_state.frame_min,
+        st.session_state.frame_max,
         st.session_state.frame_min
     )
 
@@ -42,8 +47,8 @@ def render_analysis_tools():
 
     with col1:
         base_chart = alt.Chart(st.session_state.chart_data).mark_line().encode(
-            x="Frame:Q", 
-            y="Area:Q", 
+            x="Frame:Q",
+            y="Area:Q",
             color="Metric:N"
         ).properties(width=600, height=300)
 
@@ -55,8 +60,9 @@ def render_analysis_tools():
         st.image(rgb, caption=f"Frame {frame}", use_container_width=True)
         st.metric("F-C Score", f"{st.session_state.df.loc[frame, 'F-C score']:.3f}")
 
-# Main content for Interactive Analysis
-if page == "📊 Interactive Analysis":
+# -------------------- MAIN PAGE CONTENT --------------------
+
+def interactive_analysis_page():
     st.title("🎯 Stay Focused or Float Away? : Focus-Concentration Analysis")
 
     video_files = {
