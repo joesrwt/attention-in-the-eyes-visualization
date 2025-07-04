@@ -49,11 +49,11 @@ This metric reveals whether attention is **locked in** or **wandering**.
   <tr>
     <td align="center" width="50%">
       <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif" alt="High F-C Score" style="max-width:100%; border-radius:8px;">
-      <p style="font-style: italic; color: #555;">Gaze remains tightly grouped in one region.</p>
+      <p style="font-style: italic; color: #555;">High F-C : Gaze tightly grouped in one region.</p>
     </td>
     <td align="center" width="50%">
       <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif" alt="Low F-C Score" style="max-width:100%; border-radius:8px;">
-      <p style="font-style: italic; color: #555;">Gaze jumps around, showing exploration or distraction.</p>
+      <p style="font-style: italic; color: #555;">Low F-C : Gaze jumps around, showing exploration or distraction.</p>
     </td>
   </tr>
 </table>
