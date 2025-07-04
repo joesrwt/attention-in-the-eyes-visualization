@@ -45,11 +45,18 @@ This metric reveals whether attention is **locked in** or **wandering**.
 
 ## 🎥 Visual Examples of Focus
 
-| High F-C Score | Low F-C Score |
-|----------------|--------------|
-| ![High F-C Score](https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif)  
-*Gaze remains tightly grouped in one region.* | ![Low F-C Score](https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif)  
-*Gaze jumps around, showing exploration or distraction.* |
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_high_F-C_score.gif" alt="High F-C Score" style="max-width:100%; border-radius:8px;">
+      <p style="font-style: italic; color: #555;">Gaze remains tightly grouped in one region.</p>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/FOODI_2a_low_F-C_score.gif" alt="Low F-C Score" style="max-width:100%; border-radius:8px;">
+      <p style="font-style: italic; color: #555;">Gaze jumps around, showing exploration or distraction.</p>
+    </td>
+  </tr>
+</table>
 
 You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
 
