@@ -3,7 +3,7 @@
 ---
 
 ## 📌 What Captures Attention?
-
+![Gaze Boundaries Over Time](https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/convex_concave_SIMPS_9a.gif)
 Is the viewer’s attention firmly focused on key moments, or does it float, drifting between different scenes in search of something new?
 
 This visualization explores how viewers engage with a video by examining **where and how they focus their attention**.
