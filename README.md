@@ -62,4 +62,11 @@ You’ll see this visualized dynamically in the graph and overlays as you explor
 
 ---
 
+When a video is selected from the drop-down list, the system automatically scrolls to the graph display section below.
+
+
+It can be observed that, in the sample scene, the convex and concave hull areas are quite similar in size. As a result, the F-C Score shown in the figure is relatively high, reaching 0.723.
+
+---
+
 *Made with passion for understanding human attention through eye-tracking and visualization.*
