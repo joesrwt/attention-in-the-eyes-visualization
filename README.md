@@ -62,7 +62,7 @@ You’ll see this visualized dynamically in the graph and overlays as you explor
 
 ---
 <div align="center">
-![Formula](https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/Image 25-11-2568 BE at 17.09.jpeg)  
+![Formula](https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/Image%2025-11-2568%20BE%20at%2017.09.jpeg)
 *When a video is selected from the drop-down list, the system automatically scrolls to the graph display section below.*
 </div>
 
