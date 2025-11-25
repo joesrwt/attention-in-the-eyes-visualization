@@ -61,12 +61,14 @@ This metric reveals whether attention is **locked in** or **wandering**.
 You’ll see this visualized dynamically in the graph and overlays as you explore different segments of the video.
 
 ---
+
+In the sample scene, the convex and concave hull areas are quite similar in size. As a result, the F-C Score shown in the figure is relatively high, reaching 0.723.
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/nutteerabn/InfoVisual/main/gif_sample/Image%2025-11-2568%20BE%20at%2017.09.jpeg" alt="Formula" width="1300px" />
   <p><em>When a video is selected from the drop-down list, the system automatically scrolls to the graph display section below.</em></p>
 </div>
 
-It can be observed that, in the sample scene, the convex and concave hull areas are quite similar in size. As a result, the F-C Score shown in the figure is relatively high, reaching 0.723.
 
 ---
 
